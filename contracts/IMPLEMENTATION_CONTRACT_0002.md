@@ -1,6 +1,6 @@
 # IMPLEMENTATION_CONTRACT_0002
 
-Status: READY_FOR_REVIEWER
+Status: APPROVED
 
 ---
 
@@ -10,10 +10,10 @@ Status: READY_FOR_REVIEWER
 - Reviewer (both review gates): `reviewer`
 - Implementer: `programmer`
 - Risk level: `standard`
-- Currently with: `reviewer`
-- Handed off to: `reviewer`
+- Currently with: `owner`
+- Handed off to: `owner`
 - Created at: `2026-08-18T09:51:38+02:00`
-- Updated at: `2026-08-18T09:53:24+02:00`
+- Updated at: `2026-08-18T09:54:08+02:00`
 
 ---
 
@@ -67,7 +67,7 @@ Acceptance criteria:
 - The checklist contains at least 4 distinct steps, each as its own bullet item.
 - No file other than project/checklist.md is created, modified, or deleted.
 
-> Status: IMPLEMENTED
+> Status: APPROVED
 
 Programmer note:
 
@@ -83,7 +83,9 @@ Tests:
 
 Reviewer's implementation review for this point:
 
-_Awaiting review._
+_By `reviewer`, 2026-08-18T09:54:08+02:00._
+
+Read project/checklist.md directly. Content: a single top-level `#` title followed by 6 bullet items, all starting with `-`, no numbered list, no additional headings, no code blocks, no `<...>` tags, no `{`/`}` CSS blocks — matches the required bullet-list-only, no-code format exactly. Step 3 explicitly mentions 'background color to blue' (satisfies the blue/background criterion) and steps 4-5 explicitly cover an element with the exact text "HELLO WORLD!" and setting that text's color to black (satisfies the black-text criterion). 6 distinct steps present, exceeding the minimum of 4, each its own bullet item, listed in a logical build order. Filename is exactly project/checklist.md, lowercase_with_underscores as required. Glob of project/* confirms exactly three files exist (README.md, hello.md, checklist.md) — no project/CHECKLIST.md or other case variant, and no other file was created, modified, or deleted, matching the last acceptance criterion. Programmer's note and Files/Tests entries accurately describe what was done and verified (glob check for case-variant duplicates). This also matches the Architecture Review's Round 1 findings — no clarification or narrowing from that round conflicts with what was implemented.
 
 ---
 
@@ -141,7 +143,11 @@ Created project/checklist.md as a planning-only markdown bullet-list checklist f
 
 # Implementation Review
 
-_Awaiting implementation review._
+### Round 1 — 2026-08-18T09:54:08+02:00 — Verdict: APPROVED — Reviewer: `reviewer`
+
+Single-point contract fully implemented as specified. project/checklist.md was created with exactly the required lowercase filename, a single optional top-level markdown title, and a plain `-` bullet list of 6 ordered steps (create HTML file, add document structure, set body background to blue, add element with 'HELLO WORLD!' text, set that text's color to black, open/check in browser) — content verified directly by reading the file. No HTML/CSS/JS syntax, no code blocks, no numbered lists. The only other diffed files (WORKING_STATE.md, session.log) are automated pipeline artifacts, not manual scope creep.
+
+Out of Scope check: OK — Diff shows one addition (project/checklist.md, in scope) and two 'changed' files: agents/architect/WORKING_STATE.md and agents/programmer/runtime/session.log. Read both directly: WORKING_STATE.md's own header states it is 'Generated automatically from the live contract queue on every state change (Tr5-base decision 10) — do not edit by hand, edits are overwritten on the next transition,' and its content is only the two contracts' status/title lines (no project content). session.log is an auto-appended runtime trace of the exact tool calls the programmer made (Glob/Read/Write of project files) for this contract, not a manually authored content file. Neither is a governance .md (AGENTS.md/PRINCIPLES.md/ROLE.md/COMMANDS.md) nor framework .py file, and neither was edited by programmer choice — both are structural side effects of the pipeline tooling itself. No .html/.css/.js file was created or referenced, project/README.md and project/hello.md are untouched, and no file outside project/ was created or modified in a way attributable to the programmer's own work. Out of Scope constraints from the contract are fully respected.
 
 ---
 
@@ -155,12 +161,12 @@ _Not filled in._
 {
   "number": 2,
   "title": "Add project/checklist.md HTML page implementation checklist",
-  "status": "READY_FOR_REVIEWER",
+  "status": "APPROVED",
   "created_by": "architect",
-  "assigned_to": "reviewer",
-  "handoff_to": "reviewer",
+  "assigned_to": "owner",
+  "handoff_to": "owner",
   "created_at": "2026-08-18T09:51:38+02:00",
-  "updated_at": "2026-08-18T09:53:24+02:00",
+  "updated_at": "2026-08-18T09:54:08+02:00",
   "points": [
     {
       "number": 1,
@@ -182,10 +188,10 @@ _Not filled in._
       "programmer_tests": [
         "Glob pattern \"project/*checklist*\" — confirmed only project/checklist.md exists, no case-variant duplicates"
       ],
-      "reviewer_note": "",
-      "reviewer_note_author": "",
-      "reviewer_note_at": "",
-      "status": "IMPLEMENTED"
+      "reviewer_note": "Read project/checklist.md directly. Content: a single top-level `#` title followed by 6 bullet items, all starting with `-`, no numbered list, no additional headings, no code blocks, no `<...>` tags, no `{`/`}` CSS blocks — matches the required bullet-list-only, no-code format exactly. Step 3 explicitly mentions 'background color to blue' (satisfies the blue/background criterion) and steps 4-5 explicitly cover an element with the exact text \"HELLO WORLD!\" and setting that text's color to black (satisfies the black-text criterion). 6 distinct steps present, exceeding the minimum of 4, each its own bullet item, listed in a logical build order. Filename is exactly project/checklist.md, lowercase_with_underscores as required. Glob of project/* confirms exactly three files exist (README.md, hello.md, checklist.md) — no project/CHECKLIST.md or other case variant, and no other file was created, modified, or deleted, matching the last acceptance criterion. Programmer's note and Files/Tests entries accurately describe what was done and verified (glob check for case-variant duplicates). This also matches the Architecture Review's Round 1 findings — no clarification or narrowing from that round conflicts with what was implemented.",
+      "reviewer_note_author": "reviewer",
+      "reviewer_note_at": "2026-08-18T09:54:08+02:00",
+      "status": "APPROVED"
     }
   ],
   "implementer": "programmer",
@@ -209,6 +215,23 @@ _Not filled in._
     }
   ],
   "completion_notes": "Created project/checklist.md as a planning-only markdown bullet-list checklist for the future HTML page task (blue background, black \"HELLO WORLD!\" text), per the single point in this contract. No other file was created, modified, or deleted; no actual HTML/CSS/JS code was added.",
-  "implementation_review_rounds": []
+  "implementation_review_rounds": [
+    {
+      "round": 1,
+      "date": "2026-08-18T09:54:08+02:00",
+      "verdict": "APPROVED",
+      "reviewer": "reviewer",
+      "summary": "Single-point contract fully implemented as specified. project/checklist.md was created with exactly the required lowercase filename, a single optional top-level markdown title, and a plain `-` bullet list of 6 ordered steps (create HTML file, add document structure, set body background to blue, add element with 'HELLO WORLD!' text, set that text's color to black, open/check in browser) — content verified directly by reading the file. No HTML/CSS/JS syntax, no code blocks, no numbered lists. The only other diffed files (WORKING_STATE.md, session.log) are automated pipeline artifacts, not manual scope creep.",
+      "out_of_scope_ok": true,
+      "out_of_scope_findings": "Diff shows one addition (project/checklist.md, in scope) and two 'changed' files: agents/architect/WORKING_STATE.md and agents/programmer/runtime/session.log. Read both directly: WORKING_STATE.md's own header states it is 'Generated automatically from the live contract queue on every state change (Tr5-base decision 10) — do not edit by hand, edits are overwritten on the next transition,' and its content is only the two contracts' status/title lines (no project content). session.log is an auto-appended runtime trace of the exact tool calls the programmer made (Glob/Read/Write of project files) for this contract, not a manually authored content file. Neither is a governance .md (AGENTS.md/PRINCIPLES.md/ROLE.md/COMMANDS.md) nor framework .py file, and neither was edited by programmer choice — both are structural side effects of the pipeline tooling itself. No .html/.css/.js file was created or referenced, project/README.md and project/hello.md are untouched, and no file outside project/ was created or modified in a way attributable to the programmer's own work. Out of Scope constraints from the contract are fully respected.",
+      "reviews": [
+        {
+          "point": 1,
+          "status": "APPROVED",
+          "review": "Read project/checklist.md directly. Content: a single top-level `#` title followed by 6 bullet items, all starting with `-`, no numbered list, no additional headings, no code blocks, no `<...>` tags, no `{`/`}` CSS blocks — matches the required bullet-list-only, no-code format exactly. Step 3 explicitly mentions 'background color to blue' (satisfies the blue/background criterion) and steps 4-5 explicitly cover an element with the exact text \"HELLO WORLD!\" and setting that text's color to black (satisfies the black-text criterion). 6 distinct steps present, exceeding the minimum of 4, each its own bullet item, listed in a logical build order. Filename is exactly project/checklist.md, lowercase_with_underscores as required. Glob of project/* confirms exactly three files exist (README.md, hello.md, checklist.md) — no project/CHECKLIST.md or other case variant, and no other file was created, modified, or deleted, matching the last acceptance criterion. Programmer's note and Files/Tests entries accurately describe what was done and verified (glob check for case-variant duplicates). This also matches the Architecture Review's Round 1 findings — no clarification or narrowing from that round conflicts with what was implemented."
+        }
+      ]
+    }
+  ]
 }
 CONTRACT-META -->
