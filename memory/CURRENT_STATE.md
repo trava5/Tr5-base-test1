@@ -21,6 +21,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
       - update_memory.md
     - runtime/
       - .gitkeep
+      - session.log
     - COMMANDS.md
     - INBOX.md
     - MEMORY.md
@@ -52,6 +53,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
   - contract_workflow.py
   - git_ops.py
   - pipeline.py
+  - progress.py
   - voice.py
 - contracts/
   - .gitkeep
@@ -83,6 +85,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
   - test_discovery_engine.py
   - test_git_ops.py
   - test_pipeline.py
+  - test_progress.py
   - test_voice.py
   - test_voice_module.py
 - tools/
@@ -136,6 +139,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
 | config.json | agents/architect/config.json | Agent Config |
 | runtime | agents/architect/runtime | Directory |
 | .gitkeep | agents/architect/runtime/.gitkeep | Unknown |
+| session.log | agents/architect/runtime/session.log | Unknown |
 | contract_workflow.py | agents/contract_workflow.py | Python Source |
 | git_ops.py | agents/git_ops.py | Python Source |
 | pipeline.py | agents/pipeline.py | Python Source |
@@ -147,6 +151,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
 | commands | agents/programmer/commands | Directory |
 | implement_contract.md | agents/programmer/commands/implement_contract.md | Agent Command Template |
 | config.json | agents/programmer/config.json | Agent Config |
+| progress.py | agents/progress.py | Python Source |
 | reviewer | agents/reviewer | Directory |
 | COMMANDS.md | agents/reviewer/COMMANDS.md | Agent Commands |
 | INBOX.md | agents/reviewer/INBOX.md | Agent Inbox |
@@ -191,6 +196,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
 | test_discovery_engine.py | tests/test_discovery_engine.py | Python Source |
 | test_git_ops.py | tests/test_git_ops.py | Python Source |
 | test_pipeline.py | tests/test_pipeline.py | Python Source |
+| test_progress.py | tests/test_progress.py | Python Source |
 | test_voice.py | tests/test_voice.py | Python Source |
 | test_voice_module.py | tests/test_voice_module.py | Python Source |
 | tools | tools | Directory |

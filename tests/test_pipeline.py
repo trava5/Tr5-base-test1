@@ -724,3 +724,191 @@ def test_reviewer_and_programmer_get_a_fresh_agent_for_every_call(
 
     assert len(programmer_instances) == 1
     assert all(agent.closed for agent in programmer_instances)
+
+
+# --- Conversational actions (ADR-040) ----------------------------------
+
+
+def test_parse_conversational_action_extracts_the_block_and_strips_it() -> None:
+    response = (
+        "Sure, I'll rewrite the filename.\n\n"
+        '```action\n{"type": "revise_contract", "number": 1, "topic": "rename to hello.md"}\n```'
+    )
+    display_text, action = pipeline.parse_conversational_action(response)
+    assert display_text == "Sure, I'll rewrite the filename."
+    assert action == {"type": "revise_contract", "number": 1, "topic": "rename to hello.md"}
+
+
+def test_parse_conversational_action_returns_none_when_no_block_present() -> None:
+    display_text, action = pipeline.parse_conversational_action("Just a normal reply.")
+    assert display_text == "Just a normal reply."
+    assert action is None
+
+
+def test_parse_conversational_action_ignores_a_malformed_block() -> None:
+    """A block that fails to parse must not crash the conversation over
+    a one-off bad response — the raw text (block included) is shown as-is
+    instead of being silently discarded."""
+    response = "Some text.\n```action\n{not valid json\n```"
+    display_text, action = pipeline.parse_conversational_action(response)
+    assert display_text == response
+    assert action is None
+
+
+def test_parse_conversational_action_ignores_a_block_without_a_type() -> None:
+    response = 'Text.\n```action\n{"number": 1}\n```'
+    display_text, action = pipeline.parse_conversational_action(response)
+    assert display_text == response
+    assert action is None
+
+
+def test_describe_conversational_action_for_each_type() -> None:
+    assert (
+        pipeline.describe_conversational_action({"type": "new_contract", "topic": "add a check"})
+        == "/new add a check"
+    )
+    assert (
+        pipeline.describe_conversational_action(
+            {"type": "revise_contract", "number": 1, "topic": "rename to hello.md"}
+        )
+        == "/revise 1 rename to hello.md"
+    )
+    assert pipeline.describe_conversational_action({"type": "work", "number": 2}) == "/work 2"
+    assert pipeline.describe_conversational_action({"type": "work"}) == "/work"
+    assert pipeline.describe_conversational_action({"type": "review"}) == "/review"
+    assert (
+        pipeline.describe_conversational_action({"type": "proceed", "number": 3}) == "/proceed 3"
+    )
+    assert pipeline.describe_conversational_action({"type": "commit", "number": 4}) == "/commit 4"
+
+
+def test_describe_conversational_action_rejects_unknown_type() -> None:
+    with pytest.raises(ValueError, match="Unknown conversational action type"):
+        pipeline.describe_conversational_action({"type": "delete_everything"})
+
+
+def test_describe_conversational_action_rejects_missing_field() -> None:
+    with pytest.raises(ValueError, match="missing required field"):
+        pipeline.describe_conversational_action({"type": "revise_contract", "number": 1})
+
+
+def test_dispatch_conversational_action_routes_new_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = []
+    monkeypatch.setattr(
+        pipeline,
+        "create_contract",
+        lambda architect, reviewer_factory, programmer_factory, store, topic: calls.append(
+            ("new_contract", architect, reviewer_factory, programmer_factory, store, topic)
+        ),
+    )
+    pipeline.dispatch_conversational_action(
+        {"type": "new_contract", "topic": "add X"},
+        architect="architect-sentinel",
+        reviewer_factory="reviewer-factory-sentinel",
+        programmer_factory="programmer-factory-sentinel",
+        store="store-sentinel",
+    )
+    assert calls == [
+        (
+            "new_contract",
+            "architect-sentinel",
+            "reviewer-factory-sentinel",
+            "programmer-factory-sentinel",
+            "store-sentinel",
+            "add X",
+        )
+    ]
+
+
+def test_dispatch_conversational_action_routes_revise_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = []
+    monkeypatch.setattr(
+        pipeline,
+        "revise_contract",
+        lambda architect, reviewer_factory, programmer_factory, store, number, topic: calls.append(
+            (number, topic)
+        ),
+    )
+    pipeline.dispatch_conversational_action(
+        {"type": "revise_contract", "number": 1, "topic": "rename it"},
+        architect=None,
+        reviewer_factory=None,
+        programmer_factory=None,
+        store=None,
+    )
+    assert calls == [(1, "rename it")]
+
+
+def test_dispatch_conversational_action_routes_work_with_and_without_number(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = []
+    monkeypatch.setattr(
+        pipeline,
+        "implement_next",
+        lambda programmer_factory, store, *, number=None: calls.append(number),
+    )
+    pipeline.dispatch_conversational_action(
+        {"type": "work", "number": 3}, architect=None, reviewer_factory=None,
+        programmer_factory=None, store=None,
+    )
+    pipeline.dispatch_conversational_action(
+        {"type": "work"}, architect=None, reviewer_factory=None,
+        programmer_factory=None, store=None,
+    )
+    assert calls == [3, None]
+
+
+def test_dispatch_conversational_action_routes_review(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = []
+    monkeypatch.setattr(
+        pipeline,
+        "run_implementation_review",
+        lambda reviewer_factory, store, *, number=None: calls.append(number),
+    )
+    pipeline.dispatch_conversational_action(
+        {"type": "review", "number": 5}, architect=None, reviewer_factory=None,
+        programmer_factory=None, store=None,
+    )
+    assert calls == [5]
+
+
+def test_dispatch_conversational_action_routes_proceed(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = []
+    monkeypatch.setattr(
+        pipeline,
+        "proceed",
+        lambda reviewer_factory, programmer_factory, store, number: calls.append(number),
+    )
+    pipeline.dispatch_conversational_action(
+        {"type": "proceed", "number": 7}, architect=None, reviewer_factory=None,
+        programmer_factory=None, store=None,
+    )
+    assert calls == [7]
+
+
+def test_dispatch_conversational_action_routes_commit(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = []
+    monkeypatch.setattr(
+        pipeline, "commit_approved_contract", lambda store, number: calls.append(number)
+    )
+    pipeline.dispatch_conversational_action(
+        {"type": "commit", "number": 9}, architect=None, reviewer_factory=None,
+        programmer_factory=None, store=None,
+    )
+    assert calls == [9]
+
+
+def test_dispatch_conversational_action_rejects_unknown_type() -> None:
+    with pytest.raises(ValueError, match="Unknown conversational action type"):
+        pipeline.dispatch_conversational_action(
+            {"type": "delete_everything"},
+            architect=None,
+            reviewer_factory=None,
+            programmer_factory=None,
+            store=None,
+        )

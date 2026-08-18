@@ -11,9 +11,36 @@ from pathlib import Path
 from typing import Literal, Protocol, TypeAlias
 
 import claude_agent_sdk
-from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ClaudeSDKClient, TextBlock
+from claude_agent_sdk import (
+    AssistantMessage,
+    ClaudeAgentOptions,
+    ClaudeSDKClient,
+    TextBlock,
+    ToolUseBlock,
+)
 from dotenv import load_dotenv
 from openai_codex import ApprovalMode, Codex, Sandbox
+
+from .progress import log_event
+
+# `openai_codex.Thread.run()` is a single blocking call that internally
+# streams per-item events (which tool/command is running, which file is
+# being edited) and only returns once the whole turn is done — throwing
+# every intermediate event away. `_collect_turn_result` is the private
+# helper that call ultimately delegates to; importing it directly lets
+# `_codex_run_with_progress` (below) observe the same event stream live
+# (via `TurnHandle.stream()`) while still handing off the actual
+# result-extraction logic (final response, failure handling) to the SDK's
+# own exact implementation, rather than reimplementing it independently
+# and risking a subtly different answer. Imported defensively: if a future
+# `openai_codex` release restructures this private module, Codex calls
+# fall back to the plain blocking `thread.run(text)` (see
+# `_codex_run_with_progress`) — no live per-item detail, but still
+# correct, exactly today's behavior.
+try:
+    from openai_codex._run import _collect_turn_result as _codex_collect_turn_result
+except ImportError:  # pragma: no cover - exercised only by a real SDK restructure
+    _codex_collect_turn_result = None
 
 
 # This module lives at <project_root>/agents/agent.py, so the project root
@@ -258,6 +285,70 @@ def initialize_login(provider: Provider | None = None) -> None:
         login_claude()
 
 
+def _log_codex_event(project_root: Path, agent_label: str, event: object) -> None:
+    """Logs one live-streamed Codex turn event via `progress.log_event`,
+    if it is an item start/completion carrying anything worth showing.
+
+    Deliberately duck-typed (`getattr` throughout, never an `isinstance`
+    against a specific generated schema class) so a future `openai_codex`
+    release adding/renaming item fields degrades to a plainer log line
+    instead of raising — this function is display-only and must never be
+    able to break the actual agent call it is reporting on.
+    """
+    method = getattr(event, "method", "")
+    if method not in ("item/started", "item/completed"):
+        return
+    payload = getattr(event, "payload", None)
+    item = getattr(payload, "item", None)
+    if item is None:
+        return
+    item = getattr(item, "root", item)
+    kind = getattr(item, "type", None) or type(item).__name__
+
+    detail = None
+    if kind == "commandExecution":
+        detail = getattr(item, "command", None)
+    elif kind == "fileChange":
+        changes = getattr(item, "changes", None) or []
+        paths = [path for path in (getattr(change, "path", None) for change in changes) if path]
+        detail = ", ".join(paths) if paths else None
+    elif kind == "agentMessage":
+        text = getattr(item, "text", None) or ""
+        detail = text[:80] + ("…" if len(text) > 80 else "")
+
+    verb = "started" if method == "item/started" else "done"
+    message = f"{kind} {verb}"
+    if detail:
+        message += f": {detail}"
+    log_event(project_root, agent_label, message)
+
+
+def _codex_run_with_progress(thread, text: str, *, project_root: Path, agent_label: str):
+    """Runs one Codex turn like `Thread.run()`, but also logs each item as
+    it streams in (see `_log_codex_event`) instead of only returning the
+    final collected result once the whole turn is already done — the gap
+    this module (`agents/progress.py`) exists to close. Falls back to the
+    plain blocking `thread.run(text)` when `_codex_collect_turn_result`
+    could not be imported (see the module-level `try`/`except` above) —
+    same result, no live detail.
+    """
+    if _codex_collect_turn_result is None:
+        return thread.run(text)
+
+    turn = thread.turn(text)
+    stream = turn.stream()
+
+    def _tee():
+        for event in stream:
+            _log_codex_event(project_root, agent_label, event)
+            yield event
+
+    try:
+        return _codex_collect_turn_result(_tee(), turn_id=turn.id)
+    finally:
+        stream.close()
+
+
 class CodexThread:
     name = "Codex"
 
@@ -270,11 +361,13 @@ class CodexThread:
         sandbox: Sandbox,
         instructions: str | None = None,
         cwd: Path | str = WORKSPACE,
+        agent_label: str = "Codex",
     ) -> None:
         self.model = model
         self.reasoning = reasoning
         self.permission_profile = permission_profile
         self.cwd = Path(cwd).resolve()
+        self.agent_label = agent_label
         self._lock = threading.Lock()
         self._closed = False
         self._codex = Codex()
@@ -306,7 +399,9 @@ class CodexThread:
         if self._closed:
             raise RuntimeError("Codex thread is closed.")
         with self._lock:
-            result = self._thread.run(text)
+            result = _codex_run_with_progress(
+                self._thread, text, project_root=self.cwd, agent_label=self.agent_label
+            )
         return result.final_response or ""
 
     def close(self) -> None:
@@ -322,6 +417,21 @@ class CodexThread:
         self.close()
 
 
+def _summarize_tool_use(block: ToolUseBlock) -> str:
+    """Short, human-readable label for one `ToolUseBlock` — the tool name
+    plus its main argument, when one of the common ones is present
+    (`file_path`/`path` for Read/Edit/Write, `pattern` for Grep/Glob,
+    `command` for Bash — covers every tool `CLAUDE_FULL_TOOLS` grants).
+    Falls back to just the tool name for anything else, rather than
+    guessing at an unfamiliar input shape."""
+    input_data = block.input or {}
+    for key in ("file_path", "path", "pattern", "command"):
+        value = input_data.get(key)
+        if value:
+            return f"{block.name}: {value}"
+    return block.name
+
+
 class ClaudeThread:
     name = "Claude"
 
@@ -335,11 +445,13 @@ class ClaudeThread:
         permission_mode: str = "dontAsk",
         instructions: str | None = None,
         cwd: Path | str = WORKSPACE,
+        agent_label: str = "Claude",
     ) -> None:
         self.model = model
         self.reasoning = reasoning
         self.permission_profile = permission_profile
         self.cwd = Path(cwd).resolve()
+        self.agent_label = agent_label
         self._lock = threading.Lock()
         self._closed = False
         login_claude()
@@ -399,6 +511,14 @@ class ClaudeThread:
                 for block in message.content:
                     if isinstance(block, TextBlock):
                         parts.append(block.text)
+                    elif isinstance(block, ToolUseBlock):
+                        # Live visibility into what the call is doing right
+                        # now (`Read agents/pipeline.py`, `Grep ...`, ...) —
+                        # the SDK already streams this per message; it was
+                        # previously discarded here, leaving total console
+                        # silence for the whole duration of a call. See
+                        # `agents/progress.py`.
+                        log_event(self.cwd, self.agent_label, _summarize_tool_use(block))
         return "\n".join(parts)
 
     def close(self) -> None:
@@ -427,6 +547,7 @@ def create_thread(
     config: AgentConfig | None = None,
     instructions: str | None = None,
     cwd: Path | str | None = None,
+    agent_label: str | None = None,
 ) -> CodexThread | ClaudeThread:
     """Creates a generic long-lived thread.
 
@@ -436,6 +557,15 @@ def create_thread(
 
     ``cwd`` sets the provider's working directory. If omitted, the original
     behavior is kept and ``WORKSPACE`` is used.
+
+    ``agent_label`` tags progress log lines (see `agents/progress.py`) and
+    the log file they are persisted to
+    (``agents/<agent_label>/runtime/session.log``); omitted, it falls back
+    to the generic provider name (``"Codex"``/``"Claude"``) — a direct
+    `create_thread()` caller with no role still gets progress visibility on
+    the console, just not a per-role log file. `create_agent()`
+    (`agents/agent_profile.py`) passes the actual role name
+    (`architect`/`reviewer`/`programmer`).
     """
     if config is None:
         config = AgentConfig.load()
@@ -459,6 +589,7 @@ def create_thread(
             sandbox=sandbox,
             instructions=instructions,
             cwd=working_directory,
+            agent_label=agent_label or "Codex",
         )
 
     tools, allowed_tools, permission_mode = _claude_permissions(permission_profile)
@@ -471,6 +602,7 @@ def create_thread(
         permission_mode=permission_mode,
         instructions=instructions,
         cwd=working_directory,
+        agent_label=agent_label or "Claude",
     )
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import subprocess
 import threading
+from types import SimpleNamespace
 
 import pytest
 
@@ -124,3 +125,182 @@ def test_claude_thread_close_stops_the_loop_even_if_disconnect_raises() -> None:
     loop_thread.join(timeout=2)
     assert not loop_thread.is_alive()
     assert thread._closed is True
+
+
+def test_summarize_tool_use_includes_the_files_path() -> None:
+    block = agent.ToolUseBlock(id="1", name="Read", input={"file_path": "agents/pipeline.py"})
+    assert agent._summarize_tool_use(block) == "Read: agents/pipeline.py"
+
+
+def test_summarize_tool_use_includes_the_bash_command() -> None:
+    block = agent.ToolUseBlock(id="1", name="Bash", input={"command": "pytest -q"})
+    assert agent._summarize_tool_use(block) == "Bash: pytest -q"
+
+
+def test_summarize_tool_use_falls_back_to_just_the_tool_name() -> None:
+    block = agent.ToolUseBlock(id="1", name="SomeFutureTool", input={"unexpected_key": "x"})
+    assert agent._summarize_tool_use(block) == "SomeFutureTool"
+
+
+def test_claude_thread_ask_logs_tool_use_blocks(
+    tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Regression test: `_ask_async` used to only ever collect `TextBlock`
+    content, silently discarding every `ToolUseBlock` the SDK streamed —
+    the one signal that could show what a multi-minute call was actually
+    doing while it was still in flight. Bypasses `__init__` (needs a real
+    login and a real `ClaudeSDKClient`); only `_ask_async`'s own fields
+    (`_client`, `cwd`, `agent_label`) are exercised.
+    """
+    (tmp_path / "agents" / "reviewer").mkdir(parents=True)
+    thread = object.__new__(agent.ClaudeThread)
+    thread.cwd = tmp_path
+    thread.agent_label = "reviewer"
+
+    message = agent.AssistantMessage(
+        content=[
+            agent.ToolUseBlock(id="1", name="Read", input={"file_path": "agents/pipeline.py"}),
+            agent.TextBlock(text="Looks good."),
+        ],
+        model="test-model",
+    )
+
+    class _FakeClient:
+        async def query(self, text: str) -> None:
+            return None
+
+        async def receive_response(self):
+            yield message
+
+    thread._client = _FakeClient()
+
+    result = asyncio.run(thread._ask_async("review this"))
+
+    assert result == "Looks good."
+    out = capsys.readouterr().out
+    assert "[reviewer] Read: agents/pipeline.py" in out
+    log_path = tmp_path / "agents" / "reviewer" / "runtime" / "session.log"
+    assert "Read: agents/pipeline.py" in log_path.read_text(encoding="utf-8")
+
+
+def test_log_codex_event_ignores_non_item_methods(tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
+    event = SimpleNamespace(method="turn/completed", payload=SimpleNamespace())
+    agent._log_codex_event(tmp_path, "programmer", event)
+    assert capsys.readouterr().out == ""
+
+
+def test_log_codex_event_summarizes_a_command_execution(
+    tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    item = SimpleNamespace(type="commandExecution", command="pytest -q")
+    event = SimpleNamespace(
+        method="item/started", payload=SimpleNamespace(item=SimpleNamespace(root=item))
+    )
+    agent._log_codex_event(tmp_path, "programmer", event)
+    assert "commandExecution started: pytest -q" in capsys.readouterr().out
+
+
+def test_log_codex_event_summarizes_a_file_change(tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
+    item = SimpleNamespace(
+        type="fileChange",
+        changes=[SimpleNamespace(path="agents/pipeline.py"), SimpleNamespace(path="README.md")],
+    )
+    event = SimpleNamespace(
+        method="item/completed", payload=SimpleNamespace(item=SimpleNamespace(root=item))
+    )
+    agent._log_codex_event(tmp_path, "programmer", event)
+    out = capsys.readouterr().out
+    assert "fileChange done: agents/pipeline.py, README.md" in out
+
+
+def test_log_codex_event_truncates_a_long_agent_message(
+    tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    item = SimpleNamespace(type="agentMessage", text="x" * 200)
+    event = SimpleNamespace(
+        method="item/started", payload=SimpleNamespace(item=SimpleNamespace(root=item))
+    )
+    agent._log_codex_event(tmp_path, "programmer", event)
+    out = capsys.readouterr().out
+    assert ("x" * 80) in out
+    assert ("x" * 81) not in out
+
+
+def test_log_codex_event_handles_a_missing_item_without_crashing(
+    tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    event = SimpleNamespace(method="item/started", payload=SimpleNamespace(item=None))
+    agent._log_codex_event(tmp_path, "programmer", event)
+    assert capsys.readouterr().out == ""
+
+
+def test_codex_run_with_progress_falls_back_to_run_when_collector_unavailable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setattr(agent, "_codex_collect_turn_result", None)
+
+    class _FakeThread:
+        def run(self, text: str) -> str:
+            return f"plain result for {text!r}"
+
+    result = agent._codex_run_with_progress(
+        _FakeThread(), "do the thing", project_root=tmp_path, agent_label="programmer"
+    )
+    assert result == "plain result for 'do the thing'"
+
+
+def test_codex_run_with_progress_logs_each_streamed_item(
+    monkeypatch: pytest.MonkeyPatch, tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Regression test: `CodexThread.ask()` used to call the SDK's blocking
+    `Thread.run()` directly, which internally streams and then discards
+    every intermediate item event before returning — total silence for the
+    whole duration of a programmer/reviewer call. This asserts the events
+    a real `TurnHandle.stream()` would yield are observed (logged) on their
+    way through, not only the final collected result."""
+    events = [
+        SimpleNamespace(
+            method="item/started",
+            payload=SimpleNamespace(
+                item=SimpleNamespace(root=SimpleNamespace(type="commandExecution", command="ls"))
+            ),
+        ),
+        SimpleNamespace(method="turn/completed", payload=SimpleNamespace()),
+    ]
+
+    closed = []
+
+    class _FakeStream:
+        def __iter__(self):
+            return iter(events)
+
+        def close(self) -> None:
+            closed.append(True)
+
+    class _FakeTurnHandle:
+        id = "turn-1"
+
+        def stream(self) -> "_FakeStream":
+            return _FakeStream()
+
+    class _FakeThread:
+        def turn(self, text: str) -> _FakeTurnHandle:
+            return _FakeTurnHandle()
+
+    consumed = []
+
+    def _fake_collect(stream, *, turn_id: str) -> str:
+        consumed.extend(stream)
+        assert turn_id == "turn-1"
+        return "the final result"
+
+    monkeypatch.setattr(agent, "_codex_collect_turn_result", _fake_collect)
+
+    result = agent._codex_run_with_progress(
+        _FakeThread(), "implement it", project_root=tmp_path, agent_label="programmer"
+    )
+
+    assert result == "the final result"
+    assert len(consumed) == 2
+    assert closed == [True]
+    assert "commandExecution started: ls" in capsys.readouterr().out

@@ -1783,3 +1783,235 @@ pre-existing environment failure unrelated to this review
 system PortAudio headers to build one from source; not something this
 review's changes touch or could fix, and not new — the dependency was
 never installed in this checkout before this review either).
+
+## ADR-039: Live, persisted progress visibility for agent calls — new `agents/progress.py`
+
+The owner reported running a real `/new` on a "very simple task" and the
+pipeline appearing to get stuck, with no way to tell where or why: every
+architect/reviewer/programmer call is a single opaque round trip —
+`chat_architect.py`/`agents/pipeline.py` print only before and after the
+whole call, so a slow or genuinely hung call and a fast one look
+identical for however long the call is in flight, and once the terminal
+that started `chat_architect.py` is gone there is no record left to show
+which step it was on. Confirmed by reading the whole codebase: no
+`logging` module usage or timing anywhere in `agents/`.
+
+Two alternatives were considered and rejected before this design, per
+`PRINCIPLES.md` P11/P14 (match process weight to the actual gap, validate
+on the smallest real need):
+- **A supervising "orchestrator" agent.** Adds a fourth role (already an
+  unjustified backlog item, see `PRINCIPLES.md`'s Open Questions), a
+  further LLM call with its own cost/latency, and does not actually solve
+  the reported problem — an orchestrator watching another agent's opaque
+  call has exactly the same blind spot the architect/owner already has.
+- **A new window per handoff.** Requires spawning and managing separate
+  terminal processes/windows cross-platform, and still would not show
+  what is happening *inside* one long call — a new window would just sit
+  silently until that call finishes, same as today's single window.
+
+**The actual gap, once investigated**: both provider SDKs already stream
+fine-grained events while a call is running — `claude_agent_sdk`'s
+`ClaudeSDKClient.receive_response()` yields `ToolUseBlock` content (which
+tool, which arguments) alongside the final `TextBlock`s;
+`openai_codex`'s `Thread.run()` internally consumes a stream of
+per-item `Notification` events (`item/started`/`item/completed` —
+command execution, file changes, agent messages) before returning only
+the aggregated final result. `agents/agent.py` was simply discarding all
+of this once the call returned — the visibility the owner asked for was
+already being sent by the model provider and thrown away, not something
+that needed a new mechanism invented from scratch.
+
+**Fix**: new `agents/progress.py`, `log_event(project_root, agent_label,
+message)` — prints one timestamped line and appends the same line to
+`agents/<agent_label>/runtime/session.log` (already gitignored, alongside
+`thread.json`) if that role's directory exists; best-effort, swallows its
+own I/O failures so a logging problem can never break the agent call it
+is reporting on.
+
+- `agents/agent.py`: `ClaudeThread._ask_async` now also branches on
+  `ToolUseBlock` (previously only `TextBlock` was read from
+  `AssistantMessage.content`) and logs a short summary via
+  `_summarize_tool_use()` (tool name plus `file_path`/`pattern`/`command`
+  when present — covers every tool `CLAUDE_FULL_TOOLS` grants). This only
+  adds a log call alongside the existing text-collection loop; the
+  returned text is unchanged.
+- `CodexThread.ask` now calls a new `_codex_run_with_progress()` instead
+  of `self._thread.run(text)` directly. It opens the turn itself
+  (`thread.turn(text)`), tees `TurnHandle.stream()` — logging each
+  `item/started`/`item/completed` event via `_log_codex_event()` as it
+  passes through — and hands the *same* stream to
+  `openai_codex._run._collect_turn_result`, the SDK's own private
+  aggregation helper `Thread.run()` already delegates to internally. This
+  was a deliberate choice over reimplementing that aggregation logic
+  independently (final-response selection by message phase, failed-turn
+  error handling): reusing the SDK's own exact implementation guarantees
+  the returned value is byte-for-byte what `.run()` already returned
+  today, so this change cannot regress the correctness of the
+  programmer's JSON output — only add visibility into how the result was
+  produced. Imported defensively at module load
+  (`_codex_collect_turn_result`, `None` on `ImportError`); a future
+  `openai_codex` release restructuring this private module degrades to
+  the plain blocking `thread.run(text)` (no live detail, but still
+  correct) rather than crashing.
+- `_log_codex_event()` and `_summarize_tool_use()` are both deliberately
+  duck-typed (`getattr` throughout, no `isinstance` against a specific
+  generated schema class) — display-only, so a future SDK field
+  rename/removal degrades to a plainer log line instead of raising.
+- `create_thread()` (`agents/agent.py`) and `create_agent()`
+  (`agents/agent_profile.py`) gained an `agent_label` parameter —
+  `create_agent()` passes the real role name
+  (`architect`/`reviewer`/`programmer`) through, so progress lines and
+  their log file are attributed to the actual role; a direct
+  `create_thread()` caller with no role (e.g. a test, or hypothetical
+  future standalone use) falls back to the generic provider name
+  (`"Codex"`/`"Claude"`) and gets console-only lines — `log_event()`
+  never creates a new `agents/Codex/`-style directory just to hold a log
+  file for a label that is not a real per-role directory.
+- `README.md`: new "Progress visibility during an agent call" section.
+
+**Tests**: new `tests/test_progress.py` (prints and persists a
+timestamped line; skips the file, does not create a stray directory, when
+`agents/<label>/` does not exist; appends across multiple calls in order;
+swallows a file-write failure without raising). New tests in
+`tests/test_agent.py`: `_summarize_tool_use` (file path, bash command,
+unknown-tool fallback), `_log_codex_event` (ignores non-item methods,
+summarizes commandExecution/fileChange/agentMessage, truncates a long
+agent message, tolerates a missing item), `_codex_run_with_progress`
+(falls back to `thread.run()` when the private collector is unavailable;
+tees and logs every streamed item while still delegating the final
+result to a fake collector, and closes the stream), and
+`test_claude_thread_ask_logs_tool_use_blocks` (a fake `ClaudeSDKClient`
+streaming a `ToolUseBlock` alongside a `TextBlock`; asserts the tool-use
+line is both printed and persisted, and the returned text is unaffected).
+
+**Verification**: `python -m pytest -q` — 108 passed, 1 pre-existing
+unrelated failure (`test_pyaudio_backend_real_import_and_lifecycle`, see
+ADR-038's own note on this checkout's Python 3.14 `.venv`).
+
+**Not done here, left for a real case (P11/P15)**: persisting
+`agents/pipeline.py`'s own coarser phase-transition prints (contract
+created, checkpoint committed, review verdict) to a log file the same
+way — those are already visible live on the console and are not tied to
+a single role the way an agent call's own progress is, so where they
+would even be logged is a real open design question, not an oversight.
+Revisit if the per-call visibility this ADR adds turns out insufficient
+on its own.
+
+## ADR-040: Conversational actions — plain conversation can move the pipeline forward, gated behind a second explicit confirmation; the architect must never claim to have executed an action
+
+The owner hit a real, demonstrated failure running `IMPLEMENTATION_
+CONTRACT_0001` through `chat_architect.py`: after the architecture
+review's `CHANGES_REQUESTED` (a filename naming-convention fix), the
+owner replied in plain conversation ("ano, dotáhneme do konce kontrakt
+0001" — "yes, let's finish contract 1"). The architect's reply described
+a full revision in detail and ended with "Předávám kontrakt zpět
+`revise_contract`..." ("I'm handing the contract back to
+`revise_contract`...") — but nothing had happened: `chat_architect.py`
+only calls `agents/pipeline.py::revise_contract()` from the exact
+`/revise <n> <topic>` command handler; a plain `architect.ask(raw)` call
+has zero side effects on the contract store, no matter how clearly the
+reply reads as having taken action. Asked "jak to vypadá?" ("how does it
+look?"), the architect itself confirmed the contract file was completely
+unchanged (`updated_at` identical, `project/HELLO.md` still everywhere) —
+the previous reply had narrated a completed action the model had no
+actual mechanism to perform (`permission_profile: review` grants
+Read/Grep/Glob only).
+
+**Two distinct problems, both real:**
+1. The architect must never claim to have executed a state-changing
+   action in plain conversation — a trust/grounding defect independent
+   of anything else.
+2. The owner explicitly wants the reverse of "plain conversation can
+   never act": if the conversation itself makes clear that a specific,
+   already-discussed action should proceed, it should actually proceed —
+   with repeated confirmation, not blind auto-execution on a vague reply.
+
+**Design considered and rejected as insufficient on its own**: fixing (1)
+by only telling the architect not to lie about having acted would still
+leave the owner needing to retype the exact slash command every time,
+recreating exactly the friction that produced the confabulation in the
+first place (the model reaching for a "just tell them it's done" shortcut
+instead of a "here is the exact command to run" answer). Fixing both
+together, structurally, was judged the better shape than fixing (1)
+alone and treating (2) as a separate future request — the owner asked
+for both in the same conversation, and the same mechanism serves both:
+a channel for the architect to describe an action truthfully-as-not-yet-
+executed *and* trigger it, given a real confirmation.
+
+**Mechanism** (per `PRINCIPLES.md` P4 — isolation/safety must be
+structural, not merely instructed):
+- `agents/architect/ROLE.md` gained two new sections. "Never claim to
+  have executed an action" states the trust rule plainly (ties to
+  `permission_profile: review` having no write tools). "Conversational
+  actions" defines a fenced ```` ```action ```` JSON block the architect
+  may append to an otherwise plain-text reply, but only when the owner's
+  own message makes a specific, identifiable action unambiguous and
+  enough information exists to carry it out for real — never
+  speculatively. Six `"type"` values map one-to-one onto
+  `chat_architect.py`'s existing slash commands: `new_contract`,
+  `revise_contract`, `work`, `review`, `proceed`, `commit` — including
+  `proceed` (Tr5-base decision 7's `high`-risk pause), explicitly
+  instructed to apply the same bar an owner typing `/proceed <n>` by hand
+  already clears, not a weaker one.
+- New in `agents/pipeline.py`: `parse_conversational_action(response)`
+  extracts and strips the trailing block (a malformed or type-less block
+  is treated as "no action," the raw text shown unmodified rather than
+  discarded or crashing the conversation over a one-off bad response);
+  `describe_conversational_action(action)` renders the exact
+  slash-command-equivalent string for the confirmation prompt (reusing
+  `README.md`'s own documented vocabulary, not novel wording), raising
+  `ValueError` for an unknown type or a missing required field;
+  `dispatch_conversational_action(action, *, architect, reviewer_factory,
+  programmer_factory, store)` routes a *confirmed* action to the exact
+  same pipeline function (`create_contract`, `revise_contract`,
+  `implement_next`, `run_implementation_review`, `proceed`,
+  `commit_approved_contract`) the matching slash command already calls —
+  no pipeline logic is duplicated, only a second path to reach it.
+- `chat_architect.py`'s plain-text fallback now: calls `architect.ask()`
+  as before; parses and prints the action-stripped reply; if an action
+  was detected, prints the slash-command-equivalent description and
+  prompts `Run <description>? (ano/yes to confirm, anything else
+  cancels):`, reading one more line of input. Only an exact match against
+  a small fixed whitelist (`CONFIRM_WORDS = {"ano", "a", "yes", "y",
+  "ok"}`) triggers `dispatch_conversational_action`; anything else prints
+  "Cancelled." and the loop continues normally — no fuzzy intent parsing
+  on the confirmation step itself, only on the architect's own earlier
+  judgment call (which is model-driven, but gated behind this
+  code-enforced second step regardless of how that judgment was formed).
+  This gives the "repeated confirmation" the owner asked for structurally
+  (the owner's own message, the architect's structured detection of it,
+  and a separate explicit yes/no) rather than by convention alone.
+- `README.md`: new "Conversational actions" section; `HELP` text in
+  `chat_architect.py` updated to mention the mechanism.
+
+**Deliberately in scope, per the owner's explicit choice over the
+narrower "just `/new`/`/revise`" alternative**: all six state-changing
+commands, including `/proceed` (`high`-risk) and `/commit`. The
+underlying mechanism generalizes uniformly across all six (one
+discriminated JSON shape, one dispatch table entry each), so supporting
+the full set costs little beyond the two most obviously conversational
+ones (`new_contract`/`revise_contract`, which carry a natural-language
+`"topic"` a human would say anyway) — and `/proceed`'s own explicit
+confirmation-prompt step, unchanged, is exactly what a `high`-risk pause
+already requires; this mechanism does not weaken it, only offers a second
+way to reach the same explicit go-ahead.
+
+**Tests**: new tests in `tests/test_pipeline.py` —
+`parse_conversational_action` (extracts and strips a well-formed block;
+no block; malformed JSON; block without a `"type"`),
+`describe_conversational_action` (all six types; unknown type; missing
+field), and `dispatch_conversational_action` (routes each of the six
+types to its corresponding pipeline function with the right arguments,
+via monkeypatched stand-ins for those functions rather than a full
+store/agent setup — those functions' own behavior is already covered by
+this file's existing tests; unknown type raises). No new test exercises
+`chat_architect.py`'s own interactive loop directly (it has never had
+tests — no `tests/test_chat_architect.py` exists — since it is a thin,
+`input()`-driven wrapper; the parsing/description/dispatch logic it calls
+is fully covered above, matching this module's existing split between
+tested `agents/pipeline.py` logic and untested `chat_architect.py`
+wiring).
+
+**Verification**: `python -m pytest -q` — 123 total, 122 passed, 1
+pre-existing unrelated failure (`test_pyaudio_backend_real_import_and_
+lifecycle`, see ADR-038).

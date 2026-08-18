@@ -11,8 +11,11 @@ from agents.git_ops import sync_origin_from_env
 from agents.pipeline import (
     commit_approved_contract,
     create_contract,
+    describe_conversational_action,
+    dispatch_conversational_action,
     implement_next,
     opening_briefing,
+    parse_conversational_action,
     proceed,
     revise_contract,
     run_implementation_review,
@@ -22,8 +25,15 @@ from agents.pipeline import (
 from agents.voice import start_voice_session
 
 
+CONFIRM_WORDS = {"ano", "a", "yes", "y", "ok"}
+
 HELP = """
-Talk to the architect directly — plain text goes straight to them.
+Talk to the architect directly — plain text goes straight to them. If the
+architect judges from the conversation itself that you clearly confirmed
+moving a specific contract forward (no exact slash command needed), it
+proposes the equivalent command and asks you to confirm again before
+anything actually runs — reply "ano"/"yes" to proceed, anything else
+cancels and the conversation just continues.
 
 Commands available alongside the conversation:
   /new <topic>       drafts a new contract; the pipeline then runs on its
@@ -211,9 +221,37 @@ def main(project_root: Path = WORKSPACE) -> None:
                 continue
 
             try:
-                print(f"\nArchitect:\n{architect.ask(raw)}\n")
+                reply = architect.ask(raw)
             except Exception as error:
                 print(f"\nError: {error}\n")
+                continue
+
+            display_text, action = parse_conversational_action(reply)
+            print(f"\nArchitect:\n{display_text}\n")
+
+            if action is not None:
+                try:
+                    description = describe_conversational_action(action)
+                except ValueError as error:
+                    print(f"(Could not act on the detected action: {error})\n")
+                    continue
+
+                confirm = input(
+                    f"Run {description}? (ano/yes to confirm, anything else cancels): "
+                ).strip().lower()
+                if confirm in CONFIRM_WORDS:
+                    try:
+                        dispatch_conversational_action(
+                            action,
+                            architect=architect,
+                            reviewer_factory=reviewer_factory,
+                            programmer_factory=programmer_factory,
+                            store=store,
+                        )
+                    except Exception as error:
+                        print(f"\nError while running {description}: {error}\n")
+                else:
+                    print("Cancelled.\n")
 
 
 if __name__ == "__main__":

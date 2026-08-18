@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from .agent_profile import Agent
 from .contract_workflow import (
@@ -419,3 +421,133 @@ def opening_briefing(store: ContractStore, project_root: Path) -> str:
         f"Current contract queue:\n{status_text(store)}\n\n"
         f"Your inbox:\n{inbox_text or '(empty)'}"
     )
+
+
+# --- Conversational actions (ADR-040) ---------------------------------
+#
+# Before this, the only way to actually move the pipeline forward was
+# typing the exact slash command (`/new`, `/revise <n> <topic>`, ...) —
+# plain conversation (`architect.ask(...)`) never had any side effect on
+# the contract store, no matter how clearly the owner's message expressed
+# intent to proceed. `agents/architect/ROLE.md` now instructs the
+# architect to signal a confirmed, unambiguous intent by appending a
+# fenced ```action block to an otherwise plain-text reply; the three
+# functions below are what `chat_architect.py` uses to detect that block,
+# describe it back to the owner in the same vocabulary as the slash
+# commands, and — only after the owner explicitly confirms a second time
+# — dispatch to the *exact same* pipeline function the matching slash
+# command already calls. No pipeline behavior is duplicated here, only a
+# second path to trigger it; the actual mutation is still gated behind an
+# explicit, code-enforced confirmation, not merely the model's own
+# judgment that it was already agreed (per PRINCIPLES.md P4 — a text
+# instruction alone is not a structural safeguard).
+
+_ACTION_BLOCK_RE = re.compile(r"```action\s*(\{.*?\})\s*```", re.DOTALL)
+
+_ACTION_DESCRIPTIONS: dict[str, Callable[[dict[str, Any]], str]] = {
+    "new_contract": lambda a: f"/new {a['topic']}",
+    "revise_contract": lambda a: f"/revise {a['number']} {a['topic']}",
+    "work": lambda a: f"/work {a['number']}" if a.get("number") is not None else "/work",
+    "review": lambda a: f"/review {a['number']}" if a.get("number") is not None else "/review",
+    "proceed": lambda a: f"/proceed {a['number']}",
+    "commit": lambda a: f"/commit {a['number']}",
+}
+
+
+def parse_conversational_action(response: str) -> tuple[str, dict[str, Any] | None]:
+    """Extracts an optional trailing ```action fenced JSON block from a
+    plain conversational architect reply (see `agents/architect/ROLE.md`'s
+    "Conversational actions").
+
+    Returns `(display_text, action)`: `display_text` has the block
+    removed — it is never shown raw to the owner — and `action` is the
+    parsed dict, or `None` if no block is present. A block that is
+    present but not valid JSON (or not a JSON object with a `"type"`
+    field) is treated the same as "no action": the original response is
+    returned unmodified, block and all, rather than silently discarding
+    text or raising over a malformed one-off response.
+    """
+    match = _ACTION_BLOCK_RE.search(response)
+    if not match:
+        return response, None
+    try:
+        action = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return response, None
+    if not isinstance(action, dict) or "type" not in action:
+        return response, None
+    display_text = (response[: match.start()] + response[match.end() :]).strip()
+    return display_text, action
+
+
+def describe_conversational_action(action: dict[str, Any]) -> str:
+    """Human-readable, slash-command-equivalent description of a detected
+    conversational action, shown in the confirmation prompt
+    `chat_architect.py` prints before calling
+    `dispatch_conversational_action` — ties the new conversational path
+    back to the exact vocabulary `README.md`/`/help` already document,
+    instead of describing what is about to run in novel wording.
+
+    Raises `ValueError` for an unknown `"type"` or a missing required
+    field — `chat_architect.py` treats that as "cannot act on this,"
+    the same as if no action had been detected at all.
+    """
+    action_type = action.get("type")
+    builder = _ACTION_DESCRIPTIONS.get(action_type)
+    if builder is None:
+        raise ValueError(f"Unknown conversational action type: {action_type!r}")
+    try:
+        return builder(action)
+    except KeyError as error:
+        raise ValueError(
+            f"Conversational action {action_type!r} is missing required field: {error}"
+        ) from error
+
+
+def dispatch_conversational_action(
+    action: dict[str, Any],
+    *,
+    architect: Agent,
+    reviewer_factory: AgentFactory,
+    programmer_factory: AgentFactory,
+    store: ContractStore,
+) -> None:
+    """Runs the pipeline function a confirmed conversational action maps
+    to — the exact same functions `chat_architect.py`'s `/new`, `/revise`,
+    `/work`, `/review`, `/proceed`, and `/commit` handlers already call,
+    so a conversationally-triggered action and its slash-command
+    equivalent are, from this point on, indistinguishable: no pipeline
+    logic is duplicated here, only routed.
+
+    Only ever called after the owner has explicitly confirmed (see
+    `chat_architect.py`) — this function performs no confirmation of its
+    own and assumes the caller already got one.
+    """
+    action_type = action.get("type")
+    if action_type == "new_contract":
+        create_contract(
+            architect, reviewer_factory, programmer_factory, store, str(action["topic"])
+        )
+    elif action_type == "revise_contract":
+        revise_contract(
+            architect,
+            reviewer_factory,
+            programmer_factory,
+            store,
+            int(action["number"]),
+            str(action["topic"]),
+        )
+    elif action_type == "work":
+        number = action.get("number")
+        implement_next(programmer_factory, store, number=int(number) if number is not None else None)
+    elif action_type == "review":
+        number = action.get("number")
+        run_implementation_review(
+            reviewer_factory, store, number=int(number) if number is not None else None
+        )
+    elif action_type == "proceed":
+        proceed(reviewer_factory, programmer_factory, store, int(action["number"]))
+    elif action_type == "commit":
+        commit_approved_contract(store, int(action["number"]))
+    else:
+        raise ValueError(f"Unknown conversational action type: {action_type!r}")

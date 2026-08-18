@@ -129,6 +129,19 @@ alongside the conversation:
 /exit             exits (aliases: /quit, exit, quit)
 ```
 
+### Conversational actions
+
+Any of the commands above can also be triggered from plain conversation
+(ADR-040) — e.g. replying "yes, let's finish contract 1" instead of typing
+`/revise 1 <topic>`. The architect never executes anything itself in plain
+chat (it has no write tools); when it judges from your own message that a
+specific, identifiable action is clearly confirmed, it proposes the exact
+slash-command equivalent and `chat_architect.py` asks you to confirm once
+more — `ano`/`yes` runs it (via the same code path the slash command
+itself uses), anything else cancels and the conversation just continues.
+This is a second, code-enforced confirmation on top of your own message,
+not a replacement for it.
+
 ### Lifecycle
 
 Three roles, both review gates held by one INDEPENDENT reviewer (Tr5-base
@@ -254,6 +267,23 @@ never drift the way a manually-proposed memory update could. Only the
 architect has it loaded (`load_working_state: true`); the reviewer and
 programmer don't (Tr5-base decision 9 — no standing state to track
 between fresh-thread calls).
+
+## Progress visibility during an agent call
+
+An architect/reviewer/programmer call can run for minutes with no output
+in between — before ADR-039 there was nothing to distinguish "still
+working" from "hung," and nothing left afterward to show which step it was
+on. Both provider SDKs already stream what a call is doing as it happens
+(which tool is running, which file is being read/edited, which shell
+command is executing); `agents/agent.py` now surfaces that instead of only
+returning the final text once the whole call is done. Every such line is
+printed live (`[HH:MM:SS] [agent_name] Read: agents/pipeline.py`) and
+appended to that agent's own `agents/<name>/runtime/session.log`
+(gitignored, alongside `thread.json`) — so if a call hangs, the last line
+in that file is the last thing it was doing, even after the terminal that
+started `chat_architect.py` is gone. See `agents/progress.py` and
+ADR-039 for the design (why this over a supervising "orchestrator" agent
+or a separate window per handoff).
 
 ## Voice
 

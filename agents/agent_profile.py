@@ -336,5 +336,6 @@ def create_agent(
         config=config,
         instructions=instructions,
         cwd=profile.project_root,
+        agent_label=profile.config.name,
     )
     return Agent(profile=profile, thread=thread)
