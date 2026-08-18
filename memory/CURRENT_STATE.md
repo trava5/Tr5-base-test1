@@ -61,6 +61,8 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
 - contracts/
   - .gitkeep
   - IMPLEMENTATION_CONTRACT_0001.md
+  - IMPLEMENTATION_CONTRACT_0002.md
+  - OWNER_INBOX.md
   - README.md
 - memory/
   - CHANGE_LOG.md
@@ -71,6 +73,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
   - TEMPLATE_ORIGINS.md
 - project/
   - README.md
+  - checklist.md
   - hello.md
 - source/
   - README.md
@@ -175,6 +178,8 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
 | contracts | contracts | Directory |
 | .gitkeep | contracts/.gitkeep | Unknown |
 | IMPLEMENTATION_CONTRACT_0001.md | contracts/IMPLEMENTATION_CONTRACT_0001.md | Implementation Contract |
+| IMPLEMENTATION_CONTRACT_0002.md | contracts/IMPLEMENTATION_CONTRACT_0002.md | Implementation Contract |
+| OWNER_INBOX.md | contracts/OWNER_INBOX.md | Markdown Document |
 | README.md | contracts/README.md | Markdown Document |
 | memory | memory | Directory |
 | CHANGE_LOG.md | memory/CHANGE_LOG.md | Project Memory |
@@ -185,6 +190,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
 | TEMPLATE_ORIGINS.md | memory/TEMPLATE_ORIGINS.md | Project Memory |
 | project | project | Directory |
 | README.md | project/README.md | Markdown Document |
+| checklist.md | project/checklist.md | Markdown Document |
 | hello.md | project/hello.md | Markdown Document |
 | requirements.txt | requirements.txt | Unknown |
 | source | source | Directory |

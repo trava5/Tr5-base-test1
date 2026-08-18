@@ -4,3 +4,4 @@ Generated automatically from the live contract queue on every state change (Tr5-
 
 IMPLEMENTATION_CONTRACT_0001: READY_FOR_REVIEWER (risk: standard) (handed off to reviewer) — Add project/hello.md welcome note
 IMPLEMENTATION_CONTRACT_0002: APPROVED (risk: standard) (handed off to owner) — Add project/checklist.md HTML page implementation checklist
+IMPLEMENTATION_CONTRACT_0003: READY_FOR_PROGRAMMER (risk: standard) (handed off to programmer) — Add project/hello_world.html implementing the approved checklist
