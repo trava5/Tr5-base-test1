@@ -192,6 +192,17 @@ Review verdict plus its Out of Scope result. It exists so finishing a
 contract has one clear, glanceable confirmation of how the whole round
 went, without opening the contract file or running `/status`.
 
+The same recap also prints after every individual step (architecture
+review, implementation, implementation review — ADR-043), not only the
+final one — it shows whatever is filled in so far and degrades
+gracefully for what has not happened yet. A step run in isolation
+(`/work`, `/review`, or their ADR-040 conversational-action equivalents,
+which do not auto-chain further) previously left only a single terse
+status line with no visibility into where the contract actually stood
+until the whole round finished; now every step ends with the same
+glanceable recap, whether or not anything continues automatically
+afterward.
+
 All git operations in `agents/git_ops.py` run with interactive credential
 prompts disabled (`GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=Never`) —
 consistent with `AGENTS.md`'s "only provider login may be interactive"

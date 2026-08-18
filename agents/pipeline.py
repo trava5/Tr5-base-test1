@@ -213,7 +213,6 @@ def _review_and_commit(
         if committed
         else "Nothing to commit after review."
     )
-    print(render_contract_summary(reviewed))
 
 
 def commit_approved_contract(store: ContractStore, number: int) -> None:
@@ -270,6 +269,7 @@ def run_architecture_review(
         f"Architecture review: {contract.status} (risk: {contract.risk_level}); "
         f"handed off to {contract.handoff_to}."
     )
+    print(render_contract_summary(contract))
     return contract
 
 
@@ -302,6 +302,7 @@ def implement_next(
         tests=list(data.get("tests", [])),
     )
     print(f"IMPLEMENTATION_CONTRACT_{contract.number:04d} handed off to the reviewer for implementation review.")
+    print(render_contract_summary(contract))
     return contract
 
 
@@ -366,6 +367,7 @@ def run_implementation_review(
         f"IMPLEMENTATION_CONTRACT_{number:04d}: {updated.status}; "
         f"handed off to {updated.handoff_to}."
     )
+    print(render_contract_summary(updated))
     return updated
 
 

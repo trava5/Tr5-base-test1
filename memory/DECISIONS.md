@@ -2154,3 +2154,65 @@ The original Codex failure's own exact error text was still not
 captured, so whether it shares this same root cause, a different
 `openai_codex`-side issue, or an upstream auth/quota problem remains
 unconfirmed.
+
+**Resolution of the "Open" note above**: the owner confirmed the switch
+to `provider: "claude"` for the programmer is intentional and should
+stay — committed as part of this same fix (see below). The Codex-side
+question is left open, unpursued further per the owner's own choice to
+keep the programmer on Claude for now.
+
+## ADR-043: The round-summary recap now prints after every pipeline step, not only the final one
+
+Found on the very next real run after ADR-041/ADR-042's fixes: `/work 1`
+(via an ADR-040 conversational action) now completed successfully — the
+programmer wrote `project/hello.md` and the contract was correctly
+handed to the reviewer — but the console showed only one terse line
+("... handed off to the reviewer for implementation review.") and then
+returned to the `You:` prompt. The owner's own words: "mělo by se v
+tomto bodě vypsat shrnutí celého kola kontraktu" ("a summary of the
+whole contract round should be printed at this point"). Not a bug in the
+step itself (`/work` intentionally does not auto-chain further — see
+`README.md`'s own documented behavior for the manual/conversational
+path) but a real, now-demonstrated visibility gap: `render_contract_
+summary()` (Tr5-base decision 11, ADR-036) already existed and already
+degrades gracefully to show only what is filled in so far (its own
+`Contract` fields are read conditionally — an absent
+`implementation_review_rounds` list, for instance, simply omits that
+line rather than erroring), but was only ever called in two places: after
+the final `- REVIEWED` checkpoint (`_review_and_commit`) and after the
+manual `/commit` override (`commit_approved_contract`) — never after an
+individual step run on its own, which is exactly the situation a manual
+or conversational `/work`/`/review` leaves the owner in.
+
+**Fix.** `agents/pipeline.py`: `run_architecture_review()`,
+`implement_next()`, and `run_implementation_review()` each now print
+`render_contract_summary(contract)` right after their own existing
+one-line status print — regardless of verdict (a `CHANGES_REQUESTED` is
+exactly when the owner most needs the at-a-glance recap, not only the
+eventual `APPROVED` path) and regardless of whether anything chains
+automatically afterward. To avoid printing the identical final summary
+twice in the fully-automatic `APPROVED` path, `_review_and_commit()`'s
+own unconditional final `print(render_contract_summary(reviewed))` —
+now redundant, since `run_implementation_review()` already printed the
+same content moments earlier, before the checkpoint commit — was
+removed; `commit_approved_contract()`'s own final print is unchanged
+(that path does not go through `run_implementation_review()`, so it is
+not a duplicate).
+
+**Tests** (`tests/test_pipeline.py`):
+`test_run_architecture_review_prints_a_mid_pipeline_summary`,
+`test_implement_next_prints_a_mid_pipeline_summary` (the exact gap
+reported), `test_run_implementation_review_prints_a_summary_even_when_
+changes_requested`, and `test_create_contract_auto_chain_prints_the_
+summary_only_once_per_step` (a regression guard: exactly three summaries
+across the full automatic chain — one per step — and the final
+`APPROVED` one exactly once, not duplicated after the checkpoint
+commit). Existing summary tests
+(`test_commit_approved_contract_prints_a_round_summary`,
+`test_create_contract_auto_chain_prints_a_round_summary`) use substring
+assertions against `capsys` output, so the additional mid-pipeline
+prints do not break them.
+
+**Verification**: `python -m pytest -q` — 133 total, 132 passed, 1
+pre-existing unrelated failure (`test_pyaudio_backend_real_import_and_
+lifecycle`, see ADR-038).

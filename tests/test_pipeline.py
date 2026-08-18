@@ -180,6 +180,188 @@ def test_commit_approved_contract_refuses_when_not_approved(
     assert fake_git.calls == []
 
 
+def test_run_architecture_review_prints_a_mid_pipeline_summary(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Regression test: previously the only place a round summary printed
+    was right after the final `- REVIEWED` checkpoint — a manual/
+    conversational step (`/work`, `/review`, or their ADR-040
+    conversational-action equivalents) that does not auto-chain further
+    left the owner with only a single terse status line and no visibility
+    into where the contract actually stood until the whole round finished.
+    `render_contract_summary()` already degrades gracefully with whatever
+    is filled in so far (see its own docstring) — this asserts it is
+    actually shown at each individual step, not only the last one."""
+    store = create_store(tmp_path)
+    store.create_contract("Test", [{"assignment": "Point 1"}])
+    reviewer = ScriptedAgent(
+        {
+            "architecture_review": [
+                json.dumps({"verdict": "ACCEPTED", "findings": "fine", "memory_updates": []})
+            ]
+        }
+    )
+    capsys.readouterr()
+
+    pipeline.run_architecture_review(lambda: reviewer, store, 1)
+
+    out = capsys.readouterr().out
+    assert "IMPLEMENTATION_CONTRACT_0001 summary" in out
+    assert "Architecture Review: ACCEPTED" in out
+
+
+def test_implement_next_prints_a_mid_pipeline_summary(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    store = create_store(tmp_path)
+    store.create_contract("Test", [{"assignment": "Point 1"}])
+    store.record_architecture_review(1, verdict="ACCEPTED", findings="fine")
+    programmer = ScriptedAgent(
+        {
+            "implement_contract": [
+                json.dumps(
+                    {
+                        "summary": "done",
+                        "notes": [
+                            {"point": 1, "note": "did it", "files": ["a.py"], "tests": []}
+                        ],
+                        "tests": [],
+                    }
+                )
+            ]
+        }
+    )
+    capsys.readouterr()
+
+    pipeline.implement_next(lambda: programmer, store, number=1)
+
+    out = capsys.readouterr().out
+    assert "IMPLEMENTATION_CONTRACT_0001 summary" in out
+    assert "a.py" in out
+
+
+def test_run_implementation_review_prints_a_summary_even_when_changes_requested(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The mid-pipeline summary is shown regardless of verdict — a
+    CHANGES_REQUESTED result is exactly when the owner most needs to see
+    the current state at a glance, not only on the eventual APPROVED
+    path."""
+    store = create_store(tmp_path)
+    store.create_contract("Test", [{"assignment": "Point 1"}])
+    store.record_architecture_review(1, verdict="ACCEPTED", findings="fine")
+    store.claim(1)
+    store.record_programmer_result(1, summary="done", notes=[{"point": 1, "note": "did it"}])
+    reviewer = ScriptedAgent(
+        {
+            "review_contract": [
+                json.dumps(
+                    {
+                        "approved": False,
+                        "summary": "Needs work",
+                        "reviews": [
+                            {"point": 1, "status": "CHANGES_REQUESTED", "review": "no"}
+                        ],
+                        "out_of_scope_ok": True,
+                        "out_of_scope_findings": "Checked.",
+                        "memory_updates": [],
+                    }
+                )
+            ]
+        }
+    )
+    capsys.readouterr()
+
+    pipeline.run_implementation_review(lambda: reviewer, store, number=1)
+
+    out = capsys.readouterr().out
+    assert "IMPLEMENTATION_CONTRACT_0001 summary" in out
+    assert "Final status: CHANGES_REQUESTED" in out
+
+
+def test_create_contract_auto_chain_prints_the_summary_only_once_per_step(
+    tmp_path: Path, fake_git: FakeGit, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Regression guard for the de-duplication in `_review_and_commit()`:
+    once `run_implementation_review()` started printing its own
+    mid-pipeline summary, the previous unconditional summary print right
+    after the final checkpoint would have shown the exact same content
+    twice in the fully-automatic APPROVED path."""
+    store = create_store(tmp_path)
+    architect = ScriptedAgent(
+        {
+            "create_contract": [
+                json.dumps(
+                    {
+                        "title": "Test",
+                        "points": [
+                            {"assignment": "Do X", "acceptance_criteria": ["X works"]}
+                        ],
+                        "purpose": "P",
+                    }
+                )
+            ],
+        }
+    )
+    reviewer = ScriptedAgent(
+        {
+            "architecture_review": [
+                json.dumps(
+                    {"verdict": "ACCEPTED", "findings": "fine", "memory_updates": []}
+                )
+            ],
+            "review_contract": [
+                json.dumps(
+                    {
+                        "approved": True,
+                        "summary": "Good",
+                        "reviews": [
+                            {"point": 1, "status": "APPROVED", "review": "ok"}
+                        ],
+                        "out_of_scope_ok": True,
+                        "out_of_scope_findings": "Only a.py touched, matches point 1.",
+                        "memory_updates": [],
+                    }
+                )
+            ],
+        }
+    )
+    programmer = ScriptedAgent(
+        {
+            "implement_contract": [
+                json.dumps(
+                    {
+                        "summary": "done",
+                        "notes": [
+                            {
+                                "point": 1,
+                                "note": "did it",
+                                "files": ["a.py"],
+                                "tests": [],
+                            }
+                        ],
+                        "tests": [],
+                    }
+                )
+            ],
+        }
+    )
+    capsys.readouterr()
+
+    pipeline.create_contract(
+        architect, lambda: reviewer, lambda: programmer, store, "Add X"
+    )
+
+    out = capsys.readouterr().out
+    # Three distinct summaries are expected — one after architecture
+    # review (READY_FOR_PROGRAMMER), one after implementation
+    # (READY_FOR_REVIEWER), one after implementation review (APPROVED) —
+    # but the final APPROVED one exactly once, not printed again after
+    # the checkpoint commit.
+    assert out.count("IMPLEMENTATION_CONTRACT_0001 summary") == 3
+    assert out.count("Final status: APPROVED") == 1
+
+
 def test_commit_approved_contract_prints_a_round_summary(
     tmp_path: Path, fake_git: FakeGit, capsys: pytest.CaptureFixture[str]
 ) -> None:
