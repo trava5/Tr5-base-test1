@@ -1,6 +1,6 @@
 # IMPLEMENTATION_CONTRACT_0002
 
-Status: READY_FOR_PROGRAMMER
+Status: READY_FOR_REVIEWER
 
 ---
 
@@ -10,10 +10,10 @@ Status: READY_FOR_PROGRAMMER
 - Reviewer (both review gates): `reviewer`
 - Implementer: `programmer`
 - Risk level: `standard`
-- Currently with: `programmer`
-- Handed off to: `programmer`
+- Currently with: `reviewer`
+- Handed off to: `reviewer`
 - Created at: `2026-08-18T09:51:38+02:00`
-- Updated at: `2026-08-18T09:52:51+02:00`
+- Updated at: `2026-08-18T09:53:24+02:00`
 
 ---
 
@@ -67,11 +67,19 @@ Acceptance criteria:
 - The checklist contains at least 4 distinct steps, each as its own bullet item.
 - No file other than project/checklist.md is created, modified, or deleted.
 
-> Status: PENDING
+> Status: IMPLEMENTED
 
 Programmer note:
 
-_Awaiting implementation._
+_By `programmer`, 2026-08-18T09:53:24+02:00._
+
+Read project/README.md and project/hello.md first to confirm naming/style conventions in project/ (lowercase_with_underscores filenames, plain prose/markdown, no code). Created project/checklist.md with a single optional top-level title and a plain `-` bullet list of 6 ordered steps: create the HTML file, add basic HTML document structure, set body background to blue, add an element with the text "HELLO WORLD!", set that text's color to black, and open/check the result in a browser. Verified the content contains no `<...>` tags, no `{`/`}` CSS rule blocks, and no fenced code blocks — only bullet list text. Confirmed via glob that only project/checklist.md exists (no CHECKLIST.md or other case variant), and no other file in the repo was touched.
+
+Files touched:
+- `project/checklist.md`
+
+Tests:
+- Glob pattern "project/*checklist*" — confirmed only project/checklist.md exists, no case-variant duplicates
 
 Reviewer's implementation review for this point:
 
@@ -127,7 +135,7 @@ Deferred: actually writing the HTML/CSS page described by the checklist is left 
 
 # Completion Notes
 
-_Awaiting implementation._
+Created project/checklist.md as a planning-only markdown bullet-list checklist for the future HTML page task (blue background, black "HELLO WORLD!" text), per the single point in this contract. No other file was created, modified, or deleted; no actual HTML/CSS/JS code was added.
 
 ---
 
@@ -147,12 +155,12 @@ _Not filled in._
 {
   "number": 2,
   "title": "Add project/checklist.md HTML page implementation checklist",
-  "status": "READY_FOR_PROGRAMMER",
+  "status": "READY_FOR_REVIEWER",
   "created_by": "architect",
-  "assigned_to": "programmer",
-  "handoff_to": "programmer",
+  "assigned_to": "reviewer",
+  "handoff_to": "reviewer",
   "created_at": "2026-08-18T09:51:38+02:00",
-  "updated_at": "2026-08-18T09:52:51+02:00",
+  "updated_at": "2026-08-18T09:53:24+02:00",
   "points": [
     {
       "number": 1,
@@ -165,15 +173,19 @@ _Not filled in._
         "The checklist contains at least 4 distinct steps, each as its own bullet item.",
         "No file other than project/checklist.md is created, modified, or deleted."
       ],
-      "programmer_note": "",
-      "programmer_note_author": "",
-      "programmer_note_at": "",
-      "programmer_files": [],
-      "programmer_tests": [],
+      "programmer_note": "Read project/README.md and project/hello.md first to confirm naming/style conventions in project/ (lowercase_with_underscores filenames, plain prose/markdown, no code). Created project/checklist.md with a single optional top-level title and a plain `-` bullet list of 6 ordered steps: create the HTML file, add basic HTML document structure, set body background to blue, add an element with the text \"HELLO WORLD!\", set that text's color to black, and open/check the result in a browser. Verified the content contains no `<...>` tags, no `{`/`}` CSS rule blocks, and no fenced code blocks — only bullet list text. Confirmed via glob that only project/checklist.md exists (no CHECKLIST.md or other case variant), and no other file in the repo was touched.",
+      "programmer_note_author": "programmer",
+      "programmer_note_at": "2026-08-18T09:53:24+02:00",
+      "programmer_files": [
+        "project/checklist.md"
+      ],
+      "programmer_tests": [
+        "Glob pattern \"project/*checklist*\" — confirmed only project/checklist.md exists, no case-variant duplicates"
+      ],
       "reviewer_note": "",
       "reviewer_note_author": "",
       "reviewer_note_at": "",
-      "status": "PENDING"
+      "status": "IMPLEMENTED"
     }
   ],
   "implementer": "programmer",
@@ -196,7 +208,7 @@ _Not filled in._
       "findings": "Checked the contract against AGENTS.md and memory/DECISIONS.md (ADR-016/022 project/ scoping, ADR-008 naming convention, ADR-006/AGENTS.md light-path rule, ADR-029/030 risk_level criteria and gates).\n\n1) Purpose/Intent: matches a real, explicitly stated owner request (a written plan before code is written for a future small HTML task) — not the architect inventing scope. The contract's own Intent section correctly scopes itself to only the planning artifact and defers the actual HTML/CSS to a future contract, consistent with P1 ('implementation reflects today's understanding, not tomorrow's assumption') and the Future Evolution section's explicit deferral note.\n\n2) Contract-vs-light-path: creating project/checklist.md is a new file, which AGENTS.md's light-path section explicitly excludes ('must not introduce ... a new ... file ... As soon as it does, it needs a contract'), so routing this through the full contract pipeline rather than a light-path fix is correct, not overkill.\n\n3) Current State accuracy verified directly (not taken on faith): Glob confirmed project/ contains exactly README.md and hello.md; memory/CURRENT_STATE.md (Discovery Engine output) confirms the same two files and no checklist.md/HTML/CSS anywhere in the repo, and project/README.md documents project/ as the landing zone for contract output — all matching the contract's 'Current State' text verbatim (P6/P7 compliance).\n\n4) Points: single point, actionable, with a concrete, mechanically checkable acceptance-criteria list (exact filename, no case variants, bullet-list-only format with explicit exclusions for HTML/CSS/code-block syntax, required content markers for 'blue'/'background' and the exact text 'HELLO WORLD!', a minimum step count, and a no-other-file-touched constraint). No ambiguity that would force the programmer to guess.\n\n5) Out of Scope: explicitly bars creating/modifying any .html/.css/.js file, modifying README.md/hello.md or anything outside project/, adding executable code/tooling, and creating a case-variant filename — covers the realistic edge cases for a task this size.\n\n6) Backward compatibility: N/A — new file only, no existing behavior/API touched.\n\n7) Permissions/destructive commands: none required beyond a single file create inside project/, well within the programmer's `edit` permission profile and within AGENTS.md's project/-by-default write scope (ADR-022); no governance `.md` or framework `.py` file is touched.\n\n8) Naming convention (ADR-008): project/checklist.md is lowercase_with_underscores, ASCII, no hyphens — correctly classified as a free-form content file (not a rule/role/state/contract-bearing document), consistent with the existing precedent of project/hello.md (also lowercase) sitting alongside project/README.md.\n\n9) Risk level: contract declares 'standard'. Checked against the decision-7 criteria recorded in ADR-030 (real credentials/API keys, real external-system calls, native/hardware libraries, risk of landing personal/real data in git) — none apply; this is a pure local markdown-file write with no external interaction. No escalation warranted.\n\nNo defect found that requires rewriting the requirements. Contract may proceed to the programmer as written."
     }
   ],
-  "completion_notes": "",
+  "completion_notes": "Created project/checklist.md as a planning-only markdown bullet-list checklist for the future HTML page task (blue background, black \"HELLO WORLD!\" text), per the single point in this contract. No other file was created, modified, or deleted; no actual HTML/CSS/JS code was added.",
   "implementation_review_rounds": []
 }
 CONTRACT-META -->
