@@ -1,6 +1,6 @@
 # IMPLEMENTATION_CONTRACT_0004
 
-Status: READY_FOR_PROGRAMMER
+Status: READY_FOR_REVIEWER
 
 ---
 
@@ -10,10 +10,10 @@ Status: READY_FOR_PROGRAMMER
 - Reviewer (both review gates): `reviewer`
 - Implementer: `programmer`
 - Risk level: `standard`
-- Currently with: `programmer`
-- Handed off to: `programmer`
+- Currently with: `reviewer`
+- Handed off to: `reviewer`
 - Created at: `2026-08-18T10:19:48+02:00`
-- Updated at: `2026-08-18T10:20:22+02:00`
+- Updated at: `2026-08-18T10:20:47+02:00`
 
 ---
 
@@ -64,11 +64,19 @@ Acceptance criteria:
 - The h1 element's color CSS declaration (black) is unchanged.
 - The heading's text content remains exactly "HELLO WORLD!".
 
-> Status: PENDING
+> Status: IMPLEMENTED
 
 Programmer note:
 
-_Awaiting implementation._
+_By `programmer`, 2026-08-18T10:20:47+02:00._
+
+Changed the body's background-color CSS declaration in project/hello_world.html from `background-color: blue;` to `background-color: #ADD8E6;`. The h1 color: black declaration and the heading text "HELLO WORLD!" were left untouched.
+
+Files touched:
+- `project/hello_world.html`
+
+Tests:
+- Manual review of project/hello_world.html contents post-edit confirms: background-color is #ADD8E6, body has flex centering with min-height: 100vh, h1 { color: black; } unchanged, heading text exactly 'HELLO WORLD!', no <script> tag present, no other project/ file touched.
 
 Reviewer's implementation review for this point:
 
@@ -84,11 +92,19 @@ Acceptance criteria:
 - No JavaScript is added anywhere in the file (no <script> tag).
 - No file other than project/hello_world.html is created, modified, or deleted, and project/checklist.md, project/README.md, and project/hello.md remain byte-for-byte unchanged.
 
-> Status: PENDING
+> Status: IMPLEMENTED
 
 Programmer note:
 
-_Awaiting implementation._
+_By `programmer`, 2026-08-18T10:20:47+02:00._
+
+Added `display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0;` to the body selector in project/hello_world.html, centering the <h1>HELLO WORLD!</h1> heading both horizontally and vertically within the full viewport height. margin: 0 was added to remove the default body margin so the flex box actually spans the viewport edge-to-edge (a standard, minimal companion to min-height: 100vh; no visible-behavior change beyond what centering requires). The h1 tag and its text content are unchanged; no <script> tag or JS was added; no other file was created, modified, or deleted.
+
+Files touched:
+- `project/hello_world.html`
+
+Tests:
+- Manual review of project/hello_world.html contents post-edit confirms: background-color is #ADD8E6, body has flex centering with min-height: 100vh, h1 { color: black; } unchanged, heading text exactly 'HELLO WORLD!', no <script> tag present, no other project/ file touched.
 
 Reviewer's implementation review for this point:
 
@@ -124,7 +140,7 @@ Deferred: any further visual refinement (fonts, animations, responsive breakpoin
 
 # Completion Notes
 
-_Awaiting implementation._
+Updated project/hello_world.html: changed the body background-color from blue to #ADD8E6 (lightblue) and added flexbox centering (display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0) to the body so the HELLO WORLD! heading is centered both horizontally and vertically. No other file was touched, no JavaScript was added, the h1 color (black) and heading text remain unchanged.
 
 ---
 
@@ -144,12 +160,12 @@ _Not filled in._
 {
   "number": 4,
   "title": "Lighten background and center heading in project/hello_world.html",
-  "status": "READY_FOR_PROGRAMMER",
+  "status": "READY_FOR_REVIEWER",
   "created_by": "architect",
-  "assigned_to": "programmer",
-  "handoff_to": "programmer",
+  "assigned_to": "reviewer",
+  "handoff_to": "reviewer",
   "created_at": "2026-08-18T10:19:48+02:00",
-  "updated_at": "2026-08-18T10:20:22+02:00",
+  "updated_at": "2026-08-18T10:20:47+02:00",
   "points": [
     {
       "number": 1,
@@ -159,15 +175,19 @@ _Not filled in._
         "The h1 element's color CSS declaration (black) is unchanged.",
         "The heading's text content remains exactly \"HELLO WORLD!\"."
       ],
-      "programmer_note": "",
-      "programmer_note_author": "",
-      "programmer_note_at": "",
-      "programmer_files": [],
-      "programmer_tests": [],
+      "programmer_note": "Changed the body's background-color CSS declaration in project/hello_world.html from `background-color: blue;` to `background-color: #ADD8E6;`. The h1 color: black declaration and the heading text \"HELLO WORLD!\" were left untouched.",
+      "programmer_note_author": "programmer",
+      "programmer_note_at": "2026-08-18T10:20:47+02:00",
+      "programmer_files": [
+        "project/hello_world.html"
+      ],
+      "programmer_tests": [
+        "Manual review of project/hello_world.html contents post-edit confirms: background-color is #ADD8E6, body has flex centering with min-height: 100vh, h1 { color: black; } unchanged, heading text exactly 'HELLO WORLD!', no <script> tag present, no other project/ file touched."
+      ],
       "reviewer_note": "",
       "reviewer_note_author": "",
       "reviewer_note_at": "",
-      "status": "PENDING"
+      "status": "IMPLEMENTED"
     },
     {
       "number": 2,
@@ -178,15 +198,19 @@ _Not filled in._
         "No JavaScript is added anywhere in the file (no <script> tag).",
         "No file other than project/hello_world.html is created, modified, or deleted, and project/checklist.md, project/README.md, and project/hello.md remain byte-for-byte unchanged."
       ],
-      "programmer_note": "",
-      "programmer_note_author": "",
-      "programmer_note_at": "",
-      "programmer_files": [],
-      "programmer_tests": [],
+      "programmer_note": "Added `display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0;` to the body selector in project/hello_world.html, centering the <h1>HELLO WORLD!</h1> heading both horizontally and vertically within the full viewport height. margin: 0 was added to remove the default body margin so the flex box actually spans the viewport edge-to-edge (a standard, minimal companion to min-height: 100vh; no visible-behavior change beyond what centering requires). The h1 tag and its text content are unchanged; no <script> tag or JS was added; no other file was created, modified, or deleted.",
+      "programmer_note_author": "programmer",
+      "programmer_note_at": "2026-08-18T10:20:47+02:00",
+      "programmer_files": [
+        "project/hello_world.html"
+      ],
+      "programmer_tests": [
+        "Manual review of project/hello_world.html contents post-edit confirms: background-color is #ADD8E6, body has flex centering with min-height: 100vh, h1 { color: black; } unchanged, heading text exactly 'HELLO WORLD!', no <script> tag present, no other project/ file touched."
+      ],
       "reviewer_note": "",
       "reviewer_note_author": "",
       "reviewer_note_at": "",
-      "status": "PENDING"
+      "status": "IMPLEMENTED"
     }
   ],
   "implementer": "programmer",
@@ -209,7 +233,7 @@ _Not filled in._
       "findings": "Verified against AGENTS.md and memory/DECISIONS.md (ADR-021/ADR-022 project/ write scoping, ADR-029 dual review gates, naming convention section, light-path criteria in AGENTS.md, and the risk_level criteria referenced in ADR-030/decision 7). Findings: (1) Purpose/Intent describes a real, owner-requested need (softer background color, centered heading) confined to CSS in an already-delivered file — not a speculative abstraction, consistent with P1/P15; scope is deliberately narrow and explicitly does not reopen the APPROVED CONTRACT_0002/0003 deliverables. (2) Current State was checked directly against project/hello_world.html — the file's actual content (`body { background-color: blue; }`, `h1 { color: black; }`, unstyled `<h1>HELLO WORLD!</h1>`) matches the contract's Current State claim exactly, satisfying P6/P7 (facts, not interpretation, established by reading the code first). (3) Both points are independently actionable in the stated order (Point 1 changes background-color only, Point 2 adds layout/centering only) and each has concrete, mechanically verifiable acceptance criteria — exact CSS values/techniques named, exact text-content and color-preservation checks included, so the programmer does not need to guess a design choice. (4) Out of Scope is explicit about the relevant edge cases: no JS, no new/external file, no other project file touched, h1 color must stay black, heading text must stay exact — closing the obvious ways this could silently over-reach. (5) No backward-compatibility concern applies (a single static HTML page's own CSS, no consumers/API). (6) No destructive commands or access beyond the programmer's `edit` permission are required — this is a plain in-place text edit to one existing file within project/, matching AGENTS.md's project/-scoped write rule and requiring no framework-layer or governance-.md touch. (7) The requirement is self-contained and implementable without further questions — exact color value and an example centering technique (with an 'or equivalent' allowance) are both given. (8) No naming convention concern — no new file or directory is proposed. (9) risk_level: correctly left at 'standard' per the decision-7 criteria (real credentials/API keys, real external-system calls, native/hardware libraries, or risk of personal/real data landing in git) — this is a static CSS-only edit to a local HTML file with none of those properties; no escalation warranted. Also confirmed this is correctly routed through the full contract (not the AGENTS.md light path), since a background-color/layout change is a change to the code's visible output, which the light-path condition explicitly excludes."
     }
   ],
-  "completion_notes": "",
+  "completion_notes": "Updated project/hello_world.html: changed the body background-color from blue to #ADD8E6 (lightblue) and added flexbox centering (display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0) to the body so the HELLO WORLD! heading is centered both horizontally and vertically. No other file was touched, no JavaScript was added, the h1 color (black) and heading text remain unchanged.",
   "implementation_review_rounds": []
 }
 CONTRACT-META -->
