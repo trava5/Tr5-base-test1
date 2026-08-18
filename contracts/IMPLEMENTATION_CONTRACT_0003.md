@@ -1,6 +1,6 @@
 # IMPLEMENTATION_CONTRACT_0003
 
-Status: READY_FOR_PROGRAMMER
+Status: READY_FOR_REVIEWER
 
 ---
 
@@ -10,10 +10,10 @@ Status: READY_FOR_PROGRAMMER
 - Reviewer (both review gates): `reviewer`
 - Implementer: `programmer`
 - Risk level: `standard`
-- Currently with: `programmer`
-- Handed off to: `programmer`
+- Currently with: `reviewer`
+- Handed off to: `reviewer`
 - Created at: `2026-08-18T10:08:14+02:00`
-- Updated at: `2026-08-18T10:09:24+02:00`
+- Updated at: `2026-08-18T10:09:54+02:00`
 
 ---
 
@@ -70,11 +70,19 @@ Acceptance criteria:
 - project/checklist.md, project/README.md, and project/hello.md are byte-for-byte unchanged.
 - No file other than project/hello_world.html is created, modified, or deleted.
 
-> Status: PENDING
+> Status: IMPLEMENTED
 
 Programmer note:
 
-_Awaiting implementation._
+_By `programmer`, 2026-08-18T10:09:54+02:00._
+
+Read project/checklist.md, project/README.md, and project/hello.md first to confirm existing conventions and scope (no other project files exist yet, so no naming/style precedent to match beyond the checklist itself). Created project/hello_world.html as a minimal valid HTML5 document: starts with <!DOCTYPE html>, has <html>, <head> (with a <style> block), and <body>. The <style> block sets `body { background-color: blue; }` and `h1 { color: black; }`. The <body> contains a single <h1> element with text content exactly "HELLO WORLD!". No <script> tags, no <link rel="stylesheet">, no external .js/.css references — all styling is inline in the single <style> block. Did not touch project/checklist.md, project/README.md, or project/hello.md. No file named project/HELLO_WORLD.html or any other case variant was created; the filename is exactly lowercase_with_underscores as required.
+
+Files touched:
+- `project/hello_world.html`
+
+Tests:
+- Manual visual/structural inspection of the written file content (no automated test suite exists in this project for static HTML output); confirmed via file listing that only project/hello_world.html was added and no other project/ file was modified.
 
 Reviewer's implementation review for this point:
 
@@ -130,7 +138,7 @@ Deferred: any further styling, layout, additional content, or interactivity beyo
 
 # Completion Notes
 
-_Awaiting implementation._
+Created project/hello_world.html: a minimal, self-contained static HTML document implementing every step of the approved project/checklist.md — DOCTYPE/html/head/body structure, body background set to blue via a <style> block in <head>, and an <h1> element with the exact text "HELLO WORLD!" colored black via the same <style> block. No script tags, no external .css/.js references, no other files created or modified.
 
 ---
 
@@ -150,12 +158,12 @@ _Not filled in._
 {
   "number": 3,
   "title": "Add project/hello_world.html implementing the approved checklist",
-  "status": "READY_FOR_PROGRAMMER",
+  "status": "READY_FOR_REVIEWER",
   "created_by": "architect",
-  "assigned_to": "programmer",
-  "handoff_to": "programmer",
+  "assigned_to": "reviewer",
+  "handoff_to": "reviewer",
   "created_at": "2026-08-18T10:08:14+02:00",
-  "updated_at": "2026-08-18T10:09:24+02:00",
+  "updated_at": "2026-08-18T10:09:54+02:00",
   "points": [
     {
       "number": 1,
@@ -171,15 +179,19 @@ _Not filled in._
         "project/checklist.md, project/README.md, and project/hello.md are byte-for-byte unchanged.",
         "No file other than project/hello_world.html is created, modified, or deleted."
       ],
-      "programmer_note": "",
-      "programmer_note_author": "",
-      "programmer_note_at": "",
-      "programmer_files": [],
-      "programmer_tests": [],
+      "programmer_note": "Read project/checklist.md, project/README.md, and project/hello.md first to confirm existing conventions and scope (no other project files exist yet, so no naming/style precedent to match beyond the checklist itself). Created project/hello_world.html as a minimal valid HTML5 document: starts with <!DOCTYPE html>, has <html>, <head> (with a <style> block), and <body>. The <style> block sets `body { background-color: blue; }` and `h1 { color: black; }`. The <body> contains a single <h1> element with text content exactly \"HELLO WORLD!\". No <script> tags, no <link rel=\"stylesheet\">, no external .js/.css references — all styling is inline in the single <style> block. Did not touch project/checklist.md, project/README.md, or project/hello.md. No file named project/HELLO_WORLD.html or any other case variant was created; the filename is exactly lowercase_with_underscores as required.",
+      "programmer_note_author": "programmer",
+      "programmer_note_at": "2026-08-18T10:09:54+02:00",
+      "programmer_files": [
+        "project/hello_world.html"
+      ],
+      "programmer_tests": [
+        "Manual visual/structural inspection of the written file content (no automated test suite exists in this project for static HTML output); confirmed via file listing that only project/hello_world.html was added and no other project/ file was modified."
+      ],
       "reviewer_note": "",
       "reviewer_note_author": "",
       "reviewer_note_at": "",
-      "status": "PENDING"
+      "status": "IMPLEMENTED"
     }
   ],
   "implementer": "programmer",
@@ -202,7 +214,7 @@ _Not filled in._
       "findings": "Checked the contract against AGENTS.md and memory/DECISIONS.md (ADR-016/022 project/ scoping, ADR-008 naming convention, ADR-006 light-path rule, ADR-029/030 risk_level criteria and gates, ADR-024 source/ vs project/ separation).\n\n1) Purpose/Intent vs. premature abstraction: matches a real, already-approved prior decision — IMPLEMENTATION_CONTRACT_0002 (status APPROVED, verified by reading it directly) explicitly deferred 'actually writing the HTML/CSS page described by the checklist... to a separate future contract, once the owner asks for it' in its own Future Evolution section. This contract is exactly that follow-up, scoped to precisely what checklist.md describes — no added JS, styling, or framework beyond what was asked. Not a premature abstraction; it implements today's request, consistent with PRINCIPLES.md P1/P15. Minor wording looseness: the Intent section attributes the 'Future Evolution note' to checklist.md itself, when in fact that note lives in IMPLEMENTATION_CONTRACT_0002.md (checklist.md is a plain bullet list with no Future Evolution section of its own) — a cosmetic imprecision only, not a substantive defect, since the underlying claim (this implementation was explicitly deferred and pre-approved) is verified true.\n\n2) Current State accuracy verified directly, not taken on faith: read project/checklist.md (6 ordered steps: create file, doc structure, blue background, HELLO WORLD! element, black text, browser check — matches the contract's summary exactly) and memory/CURRENT_STATE.md (Discovery Engine output, confirms project/ contains exactly README.md, checklist.md, hello.md and no .html/.css/.js file exists anywhere in the repo) — both match the contract's 'Current State' text verbatim (P6/P7 compliance).\n\n3) Points: single point, actionable, with a highly specific, mechanically verifiable acceptance-criteria list (exact filename incl. case-variant exclusion, required DOCTYPE/html/head/body structure, exact CSS mechanism for background/text color with explicit alternative forms allowed, exact required text match, explicit script/external-resource exclusion, byte-for-byte unchanged sibling files, no other file touched). No ambiguity that would force the programmer to guess.\n\n4) Out of Scope: explicitly bars JavaScript, external .css/.js references, frameworks/build tooling, modifying checklist.md/README.md/hello.md, modifying anything outside project/, and case-variant filenames — covers the realistic edge cases for a task this size, mirroring the precedent set by the already-approved CONTRACT_0002's Out of Scope section.\n\n5) Backward compatibility: N/A — a single new, self-contained file, no existing behavior/API touched.\n\n6) Permissions/destructive commands: none required beyond a single file create inside project/, within the programmer's `edit` permission profile and AGENTS.md's project/-by-default write scope (ADR-022); no governance `.md` or framework `.py` file is touched.\n\n7) Naming convention (ADR-008): project/hello_world.html is lowercase_with_underscores, ASCII, no hyphens — correctly falls under 'directories and source/code files' (not a rule/role/state/contract-bearing UPPERCASE document), consistent with the .html extension being source/code rather than governance documentation.\n\n8) Risk level: contract declares 'standard'. Checked against the decision-7 criteria recorded in ADR-030 (real credentials/API keys, real external-system calls, native/hardware libraries, risk of landing personal/real data in git) — none apply; this is a pure local, static-HTML file write with no external interaction, no script, no data. No escalation warranted.\n\n9) .gitignore/P5 check: contract introduces no new credential, token, or temp-output path, so no gitignore update is required.\n\nNo defect found that requires rewriting the requirements. Contract may proceed to the programmer as written."
     }
   ],
-  "completion_notes": "",
+  "completion_notes": "Created project/hello_world.html: a minimal, self-contained static HTML document implementing every step of the approved project/checklist.md — DOCTYPE/html/head/body structure, body background set to blue via a <style> block in <head>, and an <h1> element with the exact text \"HELLO WORLD!\" colored black via the same <style> block. No script tags, no external .css/.js references, no other files created or modified.",
   "implementation_review_rounds": []
 }
 CONTRACT-META -->
