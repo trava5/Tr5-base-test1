@@ -1,6 +1,6 @@
 # IMPLEMENTATION_CONTRACT_0004
 
-Status: READY_FOR_REVIEWER
+Status: APPROVED
 
 ---
 
@@ -10,10 +10,10 @@ Status: READY_FOR_REVIEWER
 - Reviewer (both review gates): `reviewer`
 - Implementer: `programmer`
 - Risk level: `standard`
-- Currently with: `reviewer`
-- Handed off to: `reviewer`
+- Currently with: `owner`
+- Handed off to: `owner`
 - Created at: `2026-08-18T10:19:48+02:00`
-- Updated at: `2026-08-18T10:20:47+02:00`
+- Updated at: `2026-08-18T10:21:19+02:00`
 
 ---
 
@@ -64,7 +64,7 @@ Acceptance criteria:
 - The h1 element's color CSS declaration (black) is unchanged.
 - The heading's text content remains exactly "HELLO WORLD!".
 
-> Status: IMPLEMENTED
+> Status: APPROVED
 
 Programmer note:
 
@@ -80,7 +80,9 @@ Tests:
 
 Reviewer's implementation review for this point:
 
-_Awaiting review._
+_By `reviewer`, 2026-08-18T10:21:19+02:00._
+
+Verified project/hello_world.html line 8: `background-color: #ADD8E6;` replaces the prior `background-color: blue;` — no remaining `blue`/`#0000FF` declaration on body. Line 16 confirms `h1 { color: black; }` is unchanged. Line 21 confirms heading text is exactly 'HELLO WORLD!'. All three acceptance criteria satisfied.
 
 ## Point 2
 
@@ -92,7 +94,7 @@ Acceptance criteria:
 - No JavaScript is added anywhere in the file (no <script> tag).
 - No file other than project/hello_world.html is created, modified, or deleted, and project/checklist.md, project/README.md, and project/hello.md remain byte-for-byte unchanged.
 
-> Status: IMPLEMENTED
+> Status: APPROVED
 
 Programmer note:
 
@@ -108,7 +110,9 @@ Tests:
 
 Reviewer's implementation review for this point:
 
-_Awaiting review._
+_By `reviewer`, 2026-08-18T10:21:19+02:00._
+
+Verified project/hello_world.html lines 9-13: body now has `display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0;` — matches the exact example technique from the point's assignment and satisfies the centering + full-viewport-height acceptance criterion. The `margin: 0` addition is a standard, minimal companion needed for min-height: 100vh to actually reach the viewport edges and does not add any new visible feature beyond centering, so it does not exceed the point's 'or equivalent CSS technique achieving the same visible result' allowance. The <h1> tag and 'HELLO WORLD!' text are unchanged (line 21), no <script> tag exists anywhere in the file, and project/checklist.md, project/README.md, project/hello.md were read and confirmed unaffected/consistent with their pre-existing content.
 
 ---
 
@@ -146,7 +150,11 @@ Updated project/hello_world.html: changed the body background-color from blue to
 
 # Implementation Review
 
-_Awaiting implementation review._
+### Round 1 — 2026-08-18T10:21:19+02:00 — Verdict: APPROVED — Reviewer: `reviewer`
+
+Both points were implemented exactly as specified and accepted in architecture review. project/hello_world.html now has body { background-color: #ADD8E6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; } and h1 { color: black; } unchanged, with heading text exactly 'HELLO WORLD!'. No JavaScript was added, no new files created, and project/checklist.md, project/README.md, and project/hello.md remain unaffected. The only project/ file changed matches the contract's sole intended output.
+
+Out of Scope check: OK — Discovery diff lists three changed files: agents/architect/WORKING_STATE.md, agents/programmer/runtime/session.log, and project/hello_world.html. The first two are routine framework/runtime bookkeeping (working-state tracking and session logging), not contract deliverables, and are outside the programmer's project/-scoped implementation work — not a concern for this review's Out of Scope check, which is about project code changes exceeding the contract's points. project/hello_world.html is exactly the file the contract's Outputs and both points call for; its content change (background-color + flex centering) matches precisely what Points 1 and 2 require, nothing more. Confirmed via Glob that no new file was created under project/ (only the pre-existing README.md, hello.md, checklist.md, hello_world.html exist), and confirmed by reading checklist.md, README.md, and hello.md directly that their content is intact and unrelated to this change. No scope creep found.
 
 ---
 
@@ -160,12 +168,12 @@ _Not filled in._
 {
   "number": 4,
   "title": "Lighten background and center heading in project/hello_world.html",
-  "status": "READY_FOR_REVIEWER",
+  "status": "APPROVED",
   "created_by": "architect",
-  "assigned_to": "reviewer",
-  "handoff_to": "reviewer",
+  "assigned_to": "owner",
+  "handoff_to": "owner",
   "created_at": "2026-08-18T10:19:48+02:00",
-  "updated_at": "2026-08-18T10:20:47+02:00",
+  "updated_at": "2026-08-18T10:21:19+02:00",
   "points": [
     {
       "number": 1,
@@ -184,10 +192,10 @@ _Not filled in._
       "programmer_tests": [
         "Manual review of project/hello_world.html contents post-edit confirms: background-color is #ADD8E6, body has flex centering with min-height: 100vh, h1 { color: black; } unchanged, heading text exactly 'HELLO WORLD!', no <script> tag present, no other project/ file touched."
       ],
-      "reviewer_note": "",
-      "reviewer_note_author": "",
-      "reviewer_note_at": "",
-      "status": "IMPLEMENTED"
+      "reviewer_note": "Verified project/hello_world.html line 8: `background-color: #ADD8E6;` replaces the prior `background-color: blue;` — no remaining `blue`/`#0000FF` declaration on body. Line 16 confirms `h1 { color: black; }` is unchanged. Line 21 confirms heading text is exactly 'HELLO WORLD!'. All three acceptance criteria satisfied.",
+      "reviewer_note_author": "reviewer",
+      "reviewer_note_at": "2026-08-18T10:21:19+02:00",
+      "status": "APPROVED"
     },
     {
       "number": 2,
@@ -207,10 +215,10 @@ _Not filled in._
       "programmer_tests": [
         "Manual review of project/hello_world.html contents post-edit confirms: background-color is #ADD8E6, body has flex centering with min-height: 100vh, h1 { color: black; } unchanged, heading text exactly 'HELLO WORLD!', no <script> tag present, no other project/ file touched."
       ],
-      "reviewer_note": "",
-      "reviewer_note_author": "",
-      "reviewer_note_at": "",
-      "status": "IMPLEMENTED"
+      "reviewer_note": "Verified project/hello_world.html lines 9-13: body now has `display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0;` — matches the exact example technique from the point's assignment and satisfies the centering + full-viewport-height acceptance criterion. The `margin: 0` addition is a standard, minimal companion needed for min-height: 100vh to actually reach the viewport edges and does not add any new visible feature beyond centering, so it does not exceed the point's 'or equivalent CSS technique achieving the same visible result' allowance. The <h1> tag and 'HELLO WORLD!' text are unchanged (line 21), no <script> tag exists anywhere in the file, and project/checklist.md, project/README.md, project/hello.md were read and confirmed unaffected/consistent with their pre-existing content.",
+      "reviewer_note_author": "reviewer",
+      "reviewer_note_at": "2026-08-18T10:21:19+02:00",
+      "status": "APPROVED"
     }
   ],
   "implementer": "programmer",
@@ -234,6 +242,28 @@ _Not filled in._
     }
   ],
   "completion_notes": "Updated project/hello_world.html: changed the body background-color from blue to #ADD8E6 (lightblue) and added flexbox centering (display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0) to the body so the HELLO WORLD! heading is centered both horizontally and vertically. No other file was touched, no JavaScript was added, the h1 color (black) and heading text remain unchanged.",
-  "implementation_review_rounds": []
+  "implementation_review_rounds": [
+    {
+      "round": 1,
+      "date": "2026-08-18T10:21:19+02:00",
+      "verdict": "APPROVED",
+      "reviewer": "reviewer",
+      "summary": "Both points were implemented exactly as specified and accepted in architecture review. project/hello_world.html now has body { background-color: #ADD8E6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; } and h1 { color: black; } unchanged, with heading text exactly 'HELLO WORLD!'. No JavaScript was added, no new files created, and project/checklist.md, project/README.md, and project/hello.md remain unaffected. The only project/ file changed matches the contract's sole intended output.",
+      "out_of_scope_ok": true,
+      "out_of_scope_findings": "Discovery diff lists three changed files: agents/architect/WORKING_STATE.md, agents/programmer/runtime/session.log, and project/hello_world.html. The first two are routine framework/runtime bookkeeping (working-state tracking and session logging), not contract deliverables, and are outside the programmer's project/-scoped implementation work — not a concern for this review's Out of Scope check, which is about project code changes exceeding the contract's points. project/hello_world.html is exactly the file the contract's Outputs and both points call for; its content change (background-color + flex centering) matches precisely what Points 1 and 2 require, nothing more. Confirmed via Glob that no new file was created under project/ (only the pre-existing README.md, hello.md, checklist.md, hello_world.html exist), and confirmed by reading checklist.md, README.md, and hello.md directly that their content is intact and unrelated to this change. No scope creep found.",
+      "reviews": [
+        {
+          "point": 1,
+          "status": "APPROVED",
+          "review": "Verified project/hello_world.html line 8: `background-color: #ADD8E6;` replaces the prior `background-color: blue;` — no remaining `blue`/`#0000FF` declaration on body. Line 16 confirms `h1 { color: black; }` is unchanged. Line 21 confirms heading text is exactly 'HELLO WORLD!'. All three acceptance criteria satisfied."
+        },
+        {
+          "point": 2,
+          "status": "APPROVED",
+          "review": "Verified project/hello_world.html lines 9-13: body now has `display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0;` — matches the exact example technique from the point's assignment and satisfies the centering + full-viewport-height acceptance criterion. The `margin: 0` addition is a standard, minimal companion needed for min-height: 100vh to actually reach the viewport edges and does not add any new visible feature beyond centering, so it does not exceed the point's 'or equivalent CSS technique achieving the same visible result' allowance. The <h1> tag and 'HELLO WORLD!' text are unchanged (line 21), no <script> tag exists anywhere in the file, and project/checklist.md, project/README.md, project/hello.md were read and confirmed unaffected/consistent with their pre-existing content."
+        }
+      ]
+    }
+  ]
 }
 CONTRACT-META -->
