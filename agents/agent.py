@@ -405,9 +405,11 @@ class ClaudeThread:
         if self._closed:
             return
         self._closed = True
-        self._run(self._client.disconnect())
-        self._loop.call_soon_threadsafe(self._loop.stop)
-        self._loop_thread.join(timeout=2)
+        try:
+            self._run(self._client.disconnect())
+        finally:
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            self._loop_thread.join(timeout=2)
 
     def __enter__(self) -> "ClaudeThread":
         return self

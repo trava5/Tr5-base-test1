@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import subprocess
+import threading
 
 import pytest
 
@@ -74,3 +76,51 @@ def test_login_claude_raises_when_login_flow_fails(monkeypatch: pytest.MonkeyPat
 
     with pytest.raises(RuntimeError, match="Login to the Anthropic account failed"):
         agent.login_claude()
+
+
+def test_claude_thread_close_stops_the_loop_even_if_disconnect_raises() -> None:
+    """Regression test: `close()` used to call `self._client.disconnect()`
+    before stopping the background event-loop thread, with no try/finally
+    around it — if `disconnect()` raised, the loop was never stopped and
+    the thread never joined, leaking both for the rest of the process.
+    This matters because a brand-new `Agent` (and therefore a brand-new
+    `ClaudeThread`) is constructed and closed for every single reviewer/
+    programmer call (Tr5-base decision 9), so a disconnect failure on any
+    one of those calls would otherwise leak a thread every time.
+
+    Constructs a `ClaudeThread` without running `__init__` (which needs a
+    real login and a real `ClaudeSDKClient`) and wires up only what
+    `close()` actually touches: a real background event-loop thread (so
+    the assertion that it actually stops is meaningful, not mocked away)
+    and a fake client whose `disconnect()` raises.
+    """
+    thread = object.__new__(agent.ClaudeThread)
+    thread._closed = False
+    thread._lock = threading.Lock()
+
+    loop = asyncio.new_event_loop()
+    loop_ready = threading.Event()
+
+    def _run_loop() -> None:
+        asyncio.set_event_loop(loop)
+        loop.call_soon(loop_ready.set)
+        loop.run_forever()
+
+    loop_thread = threading.Thread(target=_run_loop, daemon=True)
+    loop_thread.start()
+    loop_ready.wait()
+    thread._loop = loop
+    thread._loop_thread = loop_thread
+
+    class _FailingClient:
+        async def disconnect(self) -> None:
+            raise RuntimeError("boom")
+
+    thread._client = _FailingClient()
+
+    with pytest.raises(RuntimeError, match="boom"):
+        thread.close()
+
+    loop_thread.join(timeout=2)
+    assert not loop_thread.is_alive()
+    assert thread._closed is True

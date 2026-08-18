@@ -1685,3 +1685,101 @@ necessarily the recurrence's own root cause, which was not yet known
 when this was written (the raw response that would explain it was never
 captured). Whether it happens again with this fix in place, and what the
 newly-visible raw response actually shows, is the next real signal.
+
+## ADR-038: Deep code review — a thread-leak on `ClaudeThread.close()` failure, and valid-JSON-missing-field left undiagnosable by ADR-037
+
+Requested by the owner as a standalone "review the whole project deeply"
+pass, independent of any specific incident. Read every `.py` module, every
+agent role/command/config file, and the full `memory/DECISIONS.md` history
+before drawing conclusions, then verified each finding against the actual
+code/tests (grep for call sites, not just reading a docstring's claim)
+before treating it as real. Two behavior-changing bugs were found and
+fixed; two dead/vestigial files were also found and removed (logged in
+`memory/CHANGE_LOG.md` instead, as light-path cleanup — see that entry).
+
+**Bug 1 — `ClaudeThread.close()` (`agents/agent.py`) leaked its background
+event-loop thread if `disconnect()` raised.** `close()` set `self._closed
+= True`, then ran `self._client.disconnect()`, then stopped the loop and
+joined the thread — with no `try`/`finally` between them. If `disconnect()`
+raised, the loop was never told to stop and the thread was never joined;
+since `_closed` was already `True`, a retried `close()` call would also be
+a no-op, so the leak was permanent for the life of the process. This
+mattered more here than in a typical long-lived client: Tr5-base decision
+9 constructs and closes a brand-new `Agent` (and therefore a brand-new
+`ClaudeThread`) for every single reviewer/programmer call, so any
+transient disconnect failure (a dropped connection, a closed pipe) would
+leak one thread per occurrence rather than once per process lifetime. The
+constructor already handled the equivalent failure correctly (a
+`connect()` failure inside `__init__`'s `try` stops the loop and joins the
+thread before re-raising) — `close()` just never got the same treatment.
+Fixed by wrapping the `disconnect()` call in `try`/`finally`, so the loop
+stop and thread join always run, whether or not `disconnect()` raised; the
+original exception still propagates to the caller afterward (this is not
+a place to swallow it — the caller, e.g. `agents/pipeline.py`'s
+`with reviewer_factory() as reviewer:` block, still needs to see a
+disconnect failure). New test in `tests/test_agent.py`,
+`test_claude_thread_close_stops_the_loop_even_if_disconnect_raises`:
+constructs a `ClaudeThread` via `object.__new__` (bypassing `__init__`,
+which needs a real login and a real `ClaudeSDKClient`) with a real
+background event-loop thread and a fake client whose `disconnect()`
+raises, then asserts the thread actually stops and joins even though the
+exception propagates — a real thread, not a mock, so the assertion that
+it stops is meaningful (in the spirit of P16/P4: don't verify a concurrency
+fix against something that can't actually exhibit the bug).
+
+**Bug 2 — a valid JSON response missing a field a caller reads
+unconditionally fell through `parse_json_response`'s own error handling as
+a bare `KeyError`.** ADR-037 fixed diagnosability for JSON that fails to
+*parse* (embeds a bounded snippet of the raw response in the raised
+`ValueError`), but a response that parses fine while missing e.g.
+`"title"` (`create_contract`), `"verdict"`/`"findings"` (architecture
+review), `"summary"`/`"notes"` (implementation), or
+`"approved"`/`"reviews"`/`"out_of_scope_ok"`/`"out_of_scope_findings"`
+(implementation review) was never checked by that function at all — the
+first place any of those fields was actually read was a plain
+`data["title"]`-style access in `agents/pipeline.py`, which raised an
+undecorated `KeyError`. `chat_architect.py`'s generic `except Exception`
+handlers print `str(error)`, so this surfaced as e.g. `Error while
+creating the contract: 'title'` — the exact loss of diagnostic evidence
+ADR-037 fixed for invalid JSON, left open for this closely related
+failure mode. A second instance of the same root problem existed one
+layer deeper: `ContractStore.record_programmer_result()` and
+`record_implementation_review()` (`agents/contract_workflow.py`) built
+`{int(item["point"]): item for item in notes}` (respectively `reviews`)
+directly — a note or review missing its `"point"` key raised the same
+kind of undecorated `KeyError`.
+
+Fixed at both layers:
+- `parse_json_response` now accepts an optional `required_keys:
+  tuple[str, ...]` parameter; after parsing, it checks all are present
+  and raises the same style of `ValueError` (missing-key names plus the
+  same bounded raw-response snippet) if not. `agents/pipeline.py`'s four
+  call sites (`create_contract`/`revise_contract`,
+  `run_architecture_review`, `implement_next`,
+  `run_implementation_review`) now pass the required keys for their own
+  JSON schema.
+- `record_programmer_result`/`record_implementation_review` now catch the
+  `KeyError` from the `by_number` dict comprehension and re-raise a
+  `ValueError` naming which key was missing, instead of letting the raw
+  `KeyError` escape.
+- New tests in `tests/test_contract_workflow.py`:
+  `test_parse_json_response_missing_required_key_includes_raw_response`,
+  `test_parse_json_response_required_keys_satisfied_passes_through`,
+  `test_record_programmer_result_note_missing_point_key_raises_clear_error`,
+  `test_record_implementation_review_missing_point_key_raises_clear_error`.
+
+**Dead/vestigial files removed** (see `memory/CHANGE_LOG.md` for the
+light-path entry): `agents/architect/commands/review_contract.md` (never
+actually deleted when ADR-029 moved implementation review to the
+`reviewer`) and `agents/reviewer/WORKING_STATE.md`/
+`agents/programmer/WORKING_STATE.md` (ADR-031 documented these as already
+deleted; they were not). `memory/CURRENT_STATE.md` regenerated afterward
+via `run_discovery_scan()` to match.
+
+**Verification**: `python -m pytest -q` — 93 total, 92 passed, 1
+pre-existing environment failure unrelated to this review
+(`test_pyaudio_backend_real_import_and_lifecycle` — this checkout's
+`.venv` has no prebuilt `pyaudio` wheel for its Python version and no
+system PortAudio headers to build one from source; not something this
+review's changes touch or could fix, and not new — the dependency was
+never installed in this checkout before this review either).

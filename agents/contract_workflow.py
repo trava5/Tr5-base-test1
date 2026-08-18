@@ -523,7 +523,12 @@ class ContractStore:
                 f"currently {contract.status}."
             )
 
-        by_number = {int(item["point"]): item for item in notes}
+        try:
+            by_number = {int(item["point"]): item for item in notes}
+        except KeyError as error:
+            raise ValueError(
+                f"Every programmer note must include a 'point' number. Missing key: {error}"
+            ) from error
         missing = [point.number for point in contract.points if point.number not in by_number]
         if missing:
             raise ValueError(
@@ -599,7 +604,12 @@ class ContractStore:
                 "out_of_scope_ok is True."
             )
 
-        by_number = {int(item["point"]): item for item in reviews}
+        try:
+            by_number = {int(item["point"]): item for item in reviews}
+        except KeyError as error:
+            raise ValueError(
+                f"Every review must include a 'point' number. Missing key: {error}"
+            ) from error
         missing = [point.number for point in contract.points if point.number not in by_number]
         if missing:
             raise ValueError(
@@ -998,7 +1008,9 @@ def parse_contract(content: str) -> Contract:
     return Contract(**data)
 
 
-def parse_json_response(text: str) -> dict[str, Any]:
+def parse_json_response(
+    text: str, *, required_keys: tuple[str, ...] = ()
+) -> dict[str, Any]:
     """Parse JSON from a plain response or from a ```json ... ``` block.
 
     On failure, the raised error includes a bounded diagnostic snippet of
@@ -1007,6 +1019,15 @@ def parse_json_response(text: str) -> dict[str, Any]:
     on its own gave no way to tell prose-with-no-JSON-at-all apart from
     JSON truncated mid-generation, and the raw response was otherwise
     discarded the moment this exception propagated (see ADR-037).
+
+    `required_keys` extends that same diagnosability to a second failure
+    mode ADR-037 did not cover: JSON that parses fine but is missing a
+    field a caller (`agents/pipeline.py`) is about to read unconditionally
+    (`data["title"]`, `data["verdict"]`, ...). Without this check that
+    missing field surfaced as a bare `KeyError` past this function's own
+    error handling, with the raw response already out of scope by the time
+    it propagated — the exact loss of diagnostic evidence ADR-037 fixed
+    for invalid JSON, left open for valid-JSON-missing-field.
     """
     stripped = text.strip()
     fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", stripped, re.DOTALL)
@@ -1021,6 +1042,13 @@ def parse_json_response(text: str) -> dict[str, Any]:
         ) from error
     if not isinstance(value, dict):
         raise ValueError("The root of the agent's response must be a JSON object.")
+    missing = [key for key in required_keys if key not in value]
+    if missing:
+        raise ValueError(
+            "The agent's JSON response is missing required field(s): "
+            f"{', '.join(missing)}. Raw response, for diagnosis:\n"
+            f"{_diagnostic_snippet(stripped)}"
+        )
     return value
 
 

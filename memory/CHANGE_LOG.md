@@ -31,3 +31,14 @@ Never deleted or overwritten — only a new entry is added.
   via Claude's device bridge — a temp transfer archive and a stale git
   lock placeholder, never meant to be tracked). By Claude, verifying the
   first push to `Tr5-base`.
+- 2026-08-18: Removed `agents/architect/commands/review_contract.md` — a
+  stale duplicate never actually deleted when ADR-029 moved implementation
+  review to the `reviewer` (only `agents/reviewer/commands/review_contract.md`
+  is loaded by any code path; the architect's own `COMMANDS.md` never
+  listed it). Also removed `agents/reviewer/WORKING_STATE.md` and
+  `agents/programmer/WORKING_STATE.md`, which ADR-031 already documented
+  as deleted ("vestigial... never loaded, never a valid write target")
+  but which were never actually removed from disk. Regenerated
+  `memory/CURRENT_STATE.md` via `run_discovery_scan()` afterward so the
+  checked-in scan matches the checked-in tree. By Claude, during a
+  requested deep code review.

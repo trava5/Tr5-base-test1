@@ -41,7 +41,7 @@ def create_contract(
     filling in "current_state" reads current data, not something stale."""
     run_discovery_scan(store.project_root)
     response = architect.run_command("create_contract", task=task)
-    data = parse_json_response(response)
+    data = parse_json_response(response, required_keys=("title", "points"))
     contract = store.create_contract(
         title=str(data["title"]),
         points=list(data["points"]),
@@ -69,7 +69,7 @@ def revise_contract(
 ) -> None:
     run_discovery_scan(store.project_root)
     response = architect.run_command("create_contract", task=task)
-    data = parse_json_response(response)
+    data = parse_json_response(response, required_keys=("title", "points"))
     store.revise_contract(
         number,
         title=str(data["title"]),
@@ -252,7 +252,7 @@ def run_architecture_review(
             contract_path=path.relative_to(store.project_root).as_posix(),
             contract_content=path.read_text(encoding="utf-8"),
         )
-    data = parse_json_response(response)
+    data = parse_json_response(response, required_keys=("verdict", "findings"))
     updates = [
         MemoryUpdate(path=str(item["path"]), text=str(item["text"]))
         for item in data.get("memory_updates", [])
@@ -292,7 +292,7 @@ def implement_next(
             contract_path=path.relative_to(store.project_root).as_posix(),
             contract_content=path.read_text(encoding="utf-8"),
         )
-    data = parse_json_response(response)
+    data = parse_json_response(response, required_keys=("summary", "notes"))
     contract = store.record_programmer_result(
         contract.number,
         summary=str(data["summary"]),
@@ -337,7 +337,16 @@ def run_implementation_review(
             contract_content=path.read_text(encoding="utf-8"),
             out_of_scope_diff=diff_text,
         )
-    data = parse_json_response(response)
+    data = parse_json_response(
+        response,
+        required_keys=(
+            "approved",
+            "summary",
+            "reviews",
+            "out_of_scope_ok",
+            "out_of_scope_findings",
+        ),
+    )
     updates = [
         MemoryUpdate(path=str(item["path"]), text=str(item["text"]))
         for item in data.get("memory_updates", [])

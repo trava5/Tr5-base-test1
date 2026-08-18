@@ -320,6 +320,62 @@ def test_parse_json_response_error_keeps_both_ends_of_a_long_response() -> None:
     assert len(message) < len(long_response)
 
 
+def test_parse_json_response_missing_required_key_includes_raw_response() -> None:
+    """Regression test: valid JSON missing a field a caller reads
+    unconditionally (e.g. `data["title"]`) used to fall through this
+    function's own error handling and surface as a bare `KeyError` in
+    `agents/pipeline.py`, with the raw response already out of scope —
+    the same loss of diagnostic evidence ADR-037 fixed for invalid JSON,
+    left open for this case."""
+    with pytest.raises(ValueError) as excinfo:
+        parse_json_response('{"points": []}', required_keys=("title", "points"))
+
+    message = str(excinfo.value)
+    assert "missing required field(s): title" in message
+    assert '"points": []' in message
+
+
+def test_parse_json_response_required_keys_satisfied_passes_through() -> None:
+    data = parse_json_response('{"title": "T", "points": []}', required_keys=("title", "points"))
+    assert data == {"title": "T", "points": []}
+
+
+def test_record_programmer_result_note_missing_point_key_raises_clear_error(
+    tmp_path: Path,
+) -> None:
+    store = create_store(tmp_path)
+    store.create_contract("Test", [{"assignment": "Point 1"}])
+    store.record_architecture_review(1, verdict="ACCEPTED", findings="OK")
+    store.claim(1)
+
+    with pytest.raises(ValueError, match="must include a 'point' number"):
+        store.record_programmer_result(
+            1,
+            summary="Done.",
+            notes=[{"note": "forgot the point number"}],
+        )
+
+
+def test_record_implementation_review_missing_point_key_raises_clear_error(
+    tmp_path: Path,
+) -> None:
+    store = create_store(tmp_path)
+    store.create_contract("Test", [{"assignment": "Point 1"}])
+    store.record_architecture_review(1, verdict="ACCEPTED", findings="OK")
+    store.claim(1)
+    store.record_programmer_result(1, summary="Done.", notes=[{"point": 1, "note": "A"}])
+
+    with pytest.raises(ValueError, match="must include a 'point' number"):
+        store.record_implementation_review(
+            1,
+            approved=True,
+            summary="Review",
+            reviews=[{"status": "APPROVED", "review": "forgot the point number"}],
+            out_of_scope_ok=True,
+            out_of_scope_findings="Checked.",
+        )
+
+
 def test_save_generates_working_state_md(tmp_path: Path) -> None:
     store = create_store(tmp_path)
     store.create_contract("Test", [{"assignment": "Point 1"}])

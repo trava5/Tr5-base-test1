@@ -55,6 +55,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
   - voice.py
 - contracts/
   - .gitkeep
+  - IMPLEMENTATION_CONTRACT_0001.md
   - README.md
 - memory/
   - CHANGE_LOG.md
@@ -161,6 +162,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
 | chat_architect.py | chat_architect.py | Python Source |
 | contracts | contracts | Directory |
 | .gitkeep | contracts/.gitkeep | Unknown |
+| IMPLEMENTATION_CONTRACT_0001.md | contracts/IMPLEMENTATION_CONTRACT_0001.md | Implementation Contract |
 | README.md | contracts/README.md | Markdown Document |
 | memory | memory | Directory |
 | CHANGE_LOG.md | memory/CHANGE_LOG.md | Project Memory |
