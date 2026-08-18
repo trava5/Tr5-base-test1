@@ -1,3 +1,8 @@
+# Requires Python 3.13 or earlier. `pyaudio` (below) only ships prebuilt
+# Windows wheels up to cp313 as of this writing (PyPI: PyAudio 0.2.14) —
+# on Python 3.14+ pip falls back to building it from source, which fails
+# without the PortAudio C library/headers (portaudio.h) installed. See
+# README.md's "Installation" section.
 openai-codex
 claude-agent-sdk
 python-dotenv

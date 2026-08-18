@@ -42,3 +42,14 @@ Never deleted or overwritten — only a new entry is added.
   `memory/CURRENT_STATE.md` via `run_discovery_scan()` afterward so the
   checked-in scan matches the checked-in tree. By Claude, during a
   requested deep code review.
+- 2026-08-18: `README.md` ("Installation") and `requirements.txt` —
+  corrected the claim that `pyaudio` "installs from a prebuilt wheel with
+  no extra steps" on Windows: verified against PyPI that `PyAudio` 0.2.14
+  only publishes Windows wheels up to cp313, none yet for cp314+, so
+  `pip install -r requirements.txt` on this checkout's own Python 3.14
+  venv fell back to building `pyaudio` from source and failed on a
+  missing `portaudio.h` (confirmed with `pip install --only-binary=:all:
+  pyaudio --dry-run`, which found no matching distribution at all). Added
+  a "Requires Python 3.13 or earlier" note to both files. By Claude,
+  prompted by the owner after this exact failure occurred live during the
+  deep code review's own test-dependency install.

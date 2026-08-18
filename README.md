@@ -42,6 +42,8 @@ project work back into the template.
 
 ## Installation
 
+Requires Python 3.13 or earlier — see the `pyaudio` note below.
+
 ```powershell
 python -m venv .venv
 .venv\Scripts\activate
@@ -50,8 +52,13 @@ pip install -r requirements.txt
 
 `requirements.txt` includes `pyaudio` (for `/voice`'s microphone/speaker
 access) — on Windows this installs from a prebuilt wheel with no extra
-steps; on Linux it needs the PortAudio system library installed first
-(e.g. `apt-get install portaudio19-dev`) for `pip install` to build it.
+steps, but only up to Python 3.13 (PyPI's `PyAudio` 0.2.14 ships wheels
+for cp38–cp313, none yet for cp314+); on Python 3.14+ `pip install` falls
+back to building it from source and fails without the PortAudio C
+library/headers, which are not installed by default. On Linux it always
+needs the PortAudio system library installed first (e.g.
+`apt-get install portaudio19-dev`) for `pip install` to build it,
+regardless of Python version.
 
 ## Login
 
