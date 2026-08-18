@@ -1,0 +1,1 @@
+Welcome — this note marks the first test contract run end-to-end through the Tr5-base pipeline on this cloned project, proving out the architect, reviewer, and programmer workflow on the smallest possible real case before any real application code lands here.

@@ -1,6 +1,6 @@
 # IMPLEMENTATION_CONTRACT_0001
 
-Status: READY_FOR_PROGRAMMER
+Status: READY_FOR_REVIEWER
 
 ---
 
@@ -10,10 +10,10 @@ Status: READY_FOR_PROGRAMMER
 - Reviewer (both review gates): `reviewer`
 - Implementer: `programmer`
 - Risk level: `standard`
-- Currently with: `programmer`
-- Handed off to: `programmer`
+- Currently with: `reviewer`
+- Handed off to: `reviewer`
 - Created at: `2026-08-18T07:26:09+02:00`
-- Updated at: `2026-08-18T09:01:56+02:00`
+- Updated at: `2026-08-18T09:31:19+02:00`
 
 ---
 
@@ -66,11 +66,19 @@ Acceptance criteria:
 - The paragraph's text explicitly conveys that this is the first test contract run on a project cloned from Tr5-base.
 - No other file in the repository is created, modified, or deleted.
 
-> Status: PENDING
+> Status: IMPLEMENTED
 
 Programmer note:
 
-_Awaiting implementation._
+_By `programmer`, 2026-08-18T09:31:19+02:00._
+
+Created project/hello.md with exactly one paragraph of prose (no headings, lists, or code blocks) that welcomes the reader and explicitly states this is the first test contract run on a project cloned from Tr5-base. Verified via directory listing that project/ now contains exactly README.md and hello.md, with no HELLO.md or other case variant present, and no other file in the repository was touched.
+
+Files touched:
+- `project/hello.md`
+
+Tests:
+- Glob project/* — confirmed only project/README.md and project/hello.md exist, no HELLO.md variant, no other file changed
 
 Reviewer's implementation review for this point:
 
@@ -110,7 +118,7 @@ Deferred: any decision about project/'s internal structure (e.g. backend/fronten
 
 # Completion Notes
 
-_Awaiting implementation._
+Created project/hello.md containing a single welcome paragraph stating this is the first test contract run end-to-end through the Tr5-base pipeline on this cloned project, per the contract's Point 1 (lowercase_with_underscores filename, per the round 1 architecture review fix). No other file was created, modified, or deleted.
 
 ---
 
@@ -130,12 +138,12 @@ _Not filled in._
 {
   "number": 1,
   "title": "Add project/hello.md welcome note",
-  "status": "READY_FOR_PROGRAMMER",
+  "status": "READY_FOR_REVIEWER",
   "created_by": "architect",
-  "assigned_to": "programmer",
-  "handoff_to": "programmer",
+  "assigned_to": "reviewer",
+  "handoff_to": "reviewer",
   "created_at": "2026-08-18T07:26:09+02:00",
-  "updated_at": "2026-08-18T09:01:56+02:00",
+  "updated_at": "2026-08-18T09:31:19+02:00",
   "points": [
     {
       "number": 1,
@@ -147,15 +155,19 @@ _Not filled in._
         "The paragraph's text explicitly conveys that this is the first test contract run on a project cloned from Tr5-base.",
         "No other file in the repository is created, modified, or deleted."
       ],
-      "programmer_note": "",
-      "programmer_note_author": "",
-      "programmer_note_at": "",
-      "programmer_files": [],
-      "programmer_tests": [],
+      "programmer_note": "Created project/hello.md with exactly one paragraph of prose (no headings, lists, or code blocks) that welcomes the reader and explicitly states this is the first test contract run on a project cloned from Tr5-base. Verified via directory listing that project/ now contains exactly README.md and hello.md, with no HELLO.md or other case variant present, and no other file in the repository was touched.",
+      "programmer_note_author": "programmer",
+      "programmer_note_at": "2026-08-18T09:31:19+02:00",
+      "programmer_files": [
+        "project/hello.md"
+      ],
+      "programmer_tests": [
+        "Glob project/* — confirmed only project/README.md and project/hello.md exist, no HELLO.md variant, no other file changed"
+      ],
       "reviewer_note": "",
       "reviewer_note_author": "",
       "reviewer_note_at": "",
-      "status": "PENDING"
+      "status": "IMPLEMENTED"
     }
   ],
   "implementer": "programmer",
@@ -185,7 +197,7 @@ _Not filled in._
       "findings": "Reviewed as a revision following round 1 CHANGES_REQUESTED (filename fix). Verified against AGENTS.md 'Naming convention' (ADR-008): project/hello.md is lowercase_with_underscores, no hyphens, no diacritics — correctly fixes the round 1 finding about project/HELLO.md conflicting with the rule that free-form prose .md files (no rule/role/state/contract content) use lowercase, with README.md as the sole carved-out exception. Confirmed the fix was applied consistently everywhere the filename appears: Title, Intent, Current State, Outputs, Point 1's assignment text, all five acceptance criteria, Out of Scope, and the CONTRACT-META JSON block — no stale project/HELLO.md reference remains anywhere in the document. Verified Current State against the actual repository and against the freshly regenerated memory/CURRENT_STATE.md (Discovery Engine output, lines 69/180): project/ contains only README.md today; project/hello.md and project/HELLO.md do not exist — matches the contract's claim exactly, not taken on faith (P7). Read project/README.md directly: its 'Current limitations' section ('Empty until the first contract is implemented') and 'Planned evolution' section (internal structure deferred per P1/P15) both match the contract's Intent/Future Evolution claims about it. Checked Purpose/Intent against P11/P15: this is explicitly framed as validating the architect→reviewer→programmer pipeline on the smallest real case, not a premature abstraction — a genuine, non-speculative need, matching P1 (today's need, not tomorrow's assumption). Checked Functional Requirements: single point, one clearly verifiable acceptance-criteria set (file exists at exact lowercase path, no case-variant HELLO.md exists, exactly one paragraph with no headings/lists/code blocks, paragraph explicitly states this is the first test contract on a Tr5-base clone, no other file touched) — mechanically checkable without further questions, actionable as the only point in the list. Checked Out of Scope: explicit that project/README.md and any file outside project/ stay untouched, no code/script/executable logic is added, no dependency or reference to hello.md is introduced elsewhere, and project/HELLO.md specifically must not be created — no edge case is left for the programmer to infer. Checked scope/permissions: writing a single file under project/ is within the programmer's default write scope per AGENTS.md's 'Once project/ holds real code...' rule and ADR-022; no destructive command, no access beyond the edit permission profile is required. Checked risk_level per Tr5-base decision 7 (memory/DECISIONS.md, ADR-029 area): no real credentials/API keys, no real external-system calls, no native/hardware libraries, no risk of personal/real data landing in git — 'standard' is correctly assigned and does not need escalation. Checked backward compatibility: not applicable — purely additive, no existing behavior, file, or interface is touched. Overall: the contract is complete, unambiguous, and implementable without further questions; the round 1 finding was fully and correctly resolved with no new issues introduced."
     }
   ],
-  "completion_notes": "",
+  "completion_notes": "Created project/hello.md containing a single welcome paragraph stating this is the first test contract run end-to-end through the Tr5-base pipeline on this cloned project, per the contract's Point 1 (lowercase_with_underscores filename, per the round 1 architecture review fix). No other file was created, modified, or deleted.",
   "implementation_review_rounds": []
 }
 CONTRACT-META -->

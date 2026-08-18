@@ -31,6 +31,8 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
   - programmer/
     - commands/
       - implement_contract.md
+    - runtime/
+      - session.log
     - COMMANDS.md
     - INBOX.md
     - MEMORY.md
@@ -42,6 +44,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
       - review_contract.md
     - runtime/
       - .gitkeep
+      - session.log
     - COMMANDS.md
     - INBOX.md
     - MEMORY.md
@@ -68,6 +71,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
   - TEMPLATE_ORIGINS.md
 - project/
   - README.md
+  - hello.md
 - source/
   - README.md
 - templates/
@@ -151,6 +155,8 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
 | commands | agents/programmer/commands | Directory |
 | implement_contract.md | agents/programmer/commands/implement_contract.md | Agent Command Template |
 | config.json | agents/programmer/config.json | Agent Config |
+| runtime | agents/programmer/runtime | Directory |
+| session.log | agents/programmer/runtime/session.log | Unknown |
 | progress.py | agents/progress.py | Python Source |
 | reviewer | agents/reviewer | Directory |
 | COMMANDS.md | agents/reviewer/COMMANDS.md | Agent Commands |
@@ -163,6 +169,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
 | config.json | agents/reviewer/config.json | Agent Config |
 | runtime | agents/reviewer/runtime | Directory |
 | .gitkeep | agents/reviewer/runtime/.gitkeep | Unknown |
+| session.log | agents/reviewer/runtime/session.log | Unknown |
 | voice.py | agents/voice.py | Python Source |
 | chat_architect.py | chat_architect.py | Python Source |
 | contracts | contracts | Directory |
@@ -178,6 +185,7 @@ Generated automatically before every `create_contract`/`revise_contract` call â€
 | TEMPLATE_ORIGINS.md | memory/TEMPLATE_ORIGINS.md | Project Memory |
 | project | project | Directory |
 | README.md | project/README.md | Markdown Document |
+| hello.md | project/hello.md | Markdown Document |
 | requirements.txt | requirements.txt | Unknown |
 | source | source | Directory |
 | README.md | source/README.md | Markdown Document |
