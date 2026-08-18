@@ -241,6 +241,60 @@ def test_cannot_claim_before_architecture_review(tmp_path: Path) -> None:
         store.claim(1)
 
 
+def test_reclaiming_an_in_progress_contract_for_the_same_agent_is_allowed(
+    tmp_path: Path,
+) -> None:
+    """Regression test (ADR-041): `claim()` persists `IN_PROGRESS`
+    immediately, before the caller's actual work runs. If that work then
+    fails (e.g. the programmer's own call errors out), a real run left
+    the contract permanently stranded — `claim()` refused every retry
+    with 'cannot be claimed in status IN_PROGRESS', and nothing else
+    transitions `IN_PROGRESS` back to a claimable status. Safe to retry
+    specifically because of Tr5-base decision 9: `agent` is a fresh,
+    stateless thread per call, so there is no real in-flight work an
+    already-`IN_PROGRESS` status could be protecting."""
+    store = create_store(tmp_path)
+    store.create_contract("Test", [{"assignment": "Point 1"}])
+    store.record_architecture_review(1, verdict="ACCEPTED", findings="OK")
+
+    first = store.claim(1)
+    assert first.status == "IN_PROGRESS"
+
+    # Simulates the programmer's own call failing after claim() already
+    # persisted IN_PROGRESS — a second claim() (the retry) must succeed,
+    # not raise.
+    second = store.claim(1)
+    assert second.status == "IN_PROGRESS"
+    assert second.assigned_to == "programmer"
+    assert second.handoff_to == "programmer"
+
+
+def test_reclaiming_refreshes_the_pre_discovery_snapshot(tmp_path: Path) -> None:
+    store = create_store(tmp_path)
+    store.create_contract("Test", [{"assignment": "Point 1"}])
+    store.record_architecture_review(1, verdict="ACCEPTED", findings="OK")
+    store.claim(1)
+
+    snapshot_path = tmp_path / "contracts" / ".discovery" / "0001_pre.json"
+    assert snapshot_path.is_file()
+    first_mtime = snapshot_path.stat().st_mtime_ns
+
+    store.claim(1)
+    assert snapshot_path.stat().st_mtime_ns >= first_mtime
+
+
+def test_cannot_reclaim_an_in_progress_contract_for_a_different_agent(
+    tmp_path: Path,
+) -> None:
+    store = create_store(tmp_path)
+    store.create_contract("Test", [{"assignment": "Point 1"}])
+    store.record_architecture_review(1, verdict="ACCEPTED", findings="OK")
+    store.claim(1, agent="programmer")
+
+    with pytest.raises(ValueError, match="handed off to agent 'programmer'"):
+        store.claim(1, agent="someone_else")
+
+
 def test_review_requires_every_point(tmp_path: Path) -> None:
     store = create_store(tmp_path)
     store.create_contract(
@@ -338,6 +392,37 @@ def test_parse_json_response_missing_required_key_includes_raw_response() -> Non
 def test_parse_json_response_required_keys_satisfied_passes_through() -> None:
     data = parse_json_response('{"title": "T", "points": []}', required_keys=("title", "points"))
     assert data == {"title": "T", "points": []}
+
+
+def test_parse_json_response_recovers_a_bare_object_with_leading_prose() -> None:
+    """Regression test (ADR-042): a real live run's programmer response —
+    `implement_contract.md` asks for "only valid JSON", but the model
+    prefixed it with one sentence and did not wrap it in a ```json fence.
+    Neither of `parse_json_response`'s two previously-supported shapes
+    (a fenced block, or the whole stripped text being pure JSON) covered
+    this near-miss; it must still be recovered, not rejected."""
+    raw = (
+        "Now creating the file per the contract.\n"
+        '{"summary": "Created project/hello.md.", "notes": '
+        '[{"point": 1, "note": "Done.", "files": ["project/hello.md"], "tests": []}]}'
+    )
+    data = parse_json_response(raw, required_keys=("summary", "notes"))
+    assert data["summary"] == "Created project/hello.md."
+    assert data["notes"][0]["point"] == 1
+
+
+def test_parse_json_response_recovers_a_bare_object_with_trailing_prose() -> None:
+    raw = '{"approved": true}\nLet me know if you need anything else.'
+    data = parse_json_response(raw)
+    assert data == {"approved": True}
+
+
+def test_parse_json_response_prefers_a_fenced_block_when_present() -> None:
+    """A ```` ``` ```` fence still wins over the bare-object fallback, even
+    if the surrounding prose happens to also contain a `{`/`}` pair."""
+    raw = 'Note: {"not": "this one"}.\n```json\n{"approved": true}\n```'
+    data = parse_json_response(raw)
+    assert data == {"approved": True}
 
 
 def test_record_programmer_result_note_missing_point_key_raises_clear_error(

@@ -450,20 +450,40 @@ class ContractStore:
         return contract
 
     def claim(self, number: int, *, agent: str = "programmer") -> Contract:
+        """Claims a contract for `agent`, transitioning it to `IN_PROGRESS`.
+
+        Re-claiming a contract already `IN_PROGRESS` and assigned to this
+        same `agent` is allowed and is a no-op status-wise (see ADR-041):
+        `claim()` persists `IN_PROGRESS` immediately, before the caller's
+        actual work (e.g. `implement_next()`'s call to the programmer)
+        runs — if that later step fails (a network error, an invalid
+        response, anything), the contract was previously left stranded in
+        `IN_PROGRESS` with no valid transition back to a claimable status,
+        requiring a manual file edit to recover. This is safe specifically
+        because of Tr5-base decision 9: `agent` gets a brand-new, stateless
+        thread for every single call, so there is no genuinely in-flight
+        work an already-`IN_PROGRESS` status could be protecting — a
+        second `claim()` call for the same agent is a retry of a call that
+        never completed, not a conflict with concurrent work. The
+        discovery "pre" snapshot is refreshed either way, so a retry still
+        diffs against the repository's actual current state.
+        """
         contract = self.load(number)
         if contract.handoff_to != agent:
             raise ValueError(
                 f"Contract {number:04d} is handed off to agent {contract.handoff_to!r}, "
                 f"not {agent!r}."
             )
-        if contract.status not in {"READY_FOR_PROGRAMMER", "CHANGES_REQUESTED"}:
+        already_claimed = contract.status == "IN_PROGRESS" and contract.assigned_to == agent
+        if not already_claimed and contract.status not in {"READY_FOR_PROGRAMMER", "CHANGES_REQUESTED"}:
             raise ValueError(
                 f"Contract {number:04d} cannot be claimed in status {contract.status}."
             )
-        contract.status = "IN_PROGRESS"
-        contract.assigned_to = agent
-        contract.handoff_to = agent
-        self.save(contract)
+        if not already_claimed:
+            contract.status = "IN_PROGRESS"
+            contract.assigned_to = agent
+            contract.handoff_to = agent
+            self.save(contract)
         self._save_discovery_snapshot(number, "pre")
         return contract
 
@@ -1028,10 +1048,23 @@ def parse_json_response(
     error handling, with the raw response already out of scope by the time
     it propagated — the exact loss of diagnostic evidence ADR-037 fixed
     for invalid JSON, left open for valid-JSON-missing-field.
+
+    A third case (ADR-042): a response that is neither cleanly fenced nor
+    itself pure JSON, e.g. a leading sentence before an otherwise
+    well-formed object ("Now creating the file per the contract.\n{...}"),
+    with no ```` ``` ```` fence around it — every command template already
+    asks for "only valid JSON", but that is a text instruction, not a
+    structural guarantee a model actually follows it every time (see
+    `PRINCIPLES.md` P4). `_extract_first_json_object` looks for a balanced
+    `{...}` object anywhere in the text as a fallback, so a near-miss
+    response like this one is still recovered instead of rejected outright.
     """
     stripped = text.strip()
     fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", stripped, re.DOTALL)
-    candidate = fenced.group(1) if fenced else stripped
+    if fenced:
+        candidate = fenced.group(1)
+    else:
+        candidate = _extract_first_json_object(stripped) or stripped
     try:
         value = json.loads(candidate)
     except json.JSONDecodeError as error:
@@ -1050,6 +1083,41 @@ def parse_json_response(
             f"{_diagnostic_snippet(stripped)}"
         )
     return value
+
+
+def _extract_first_json_object(text: str) -> str | None:
+    """Finds the first complete, top-level `{...}` object in `text` by
+    brace-matching (string- and escape-aware, so a `{`/`}` inside a quoted
+    value never miscounts), regardless of what precedes or follows it.
+    Returns `None` if no balanced object is found — the caller falls back
+    to treating the whole text as the candidate, unchanged from before
+    (ADR-042).
+    """
+    start = text.find("{")
+    while start != -1:
+        depth = 0
+        in_string = False
+        escape = False
+        for index in range(start, len(text)):
+            char = text[index]
+            if in_string:
+                if escape:
+                    escape = False
+                elif char == "\\":
+                    escape = True
+                elif char == '"':
+                    in_string = False
+                continue
+            if char == '"':
+                in_string = True
+            elif char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[start : index + 1]
+        start = text.find("{", start + 1)
+    return None
 
 
 def _diagnostic_snippet(text: str, *, head: int = 1200, tail: int = 800) -> str:

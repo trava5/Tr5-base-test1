@@ -2015,3 +2015,142 @@ wiring).
 **Verification**: `python -m pytest -q` — 123 total, 122 passed, 1
 pre-existing unrelated failure (`test_pyaudio_backend_real_import_and_
 lifecycle`, see ADR-038).
+
+## ADR-041: `claim()` permanently stranded a contract in `IN_PROGRESS` if the programmer's own call failed afterward
+
+Found during the owner's first live test of ADR-040's conversational
+actions: the architect correctly detected "let's finish contract 1,"
+proposed `/work 1`, the owner confirmed, and `dispatch_conversational_
+action` correctly called the same `implement_next()` the slash command
+itself would have. That call failed with no completion recorded — but
+retrying (a second confirmed `/work 1`) then failed differently, with
+`ContractStore.claim()` refusing: "Contract 0001 cannot be claimed in
+status IN_PROGRESS." ADR-039's own progress log
+(`agents/programmer/runtime/session.log`) showed exactly two lines for
+the failed attempt — `userMessage started`/`userMessage done` — and
+nothing else: no reasoning, no tool call, no file change, no agent
+message before the turn ended. `contracts/.discovery/0001_pre.json`
+existed with no matching `_post.json`, and Point 1 was still `PENDING`
+("Awaiting implementation") — confirming no partial work existed to
+protect, only a stale status flag.
+
+**Root cause.** `ContractStore.claim()` (`agents/contract_workflow.py`)
+persists `IN_PROGRESS` to disk *before* the caller's actual work runs —
+by design, so the claim itself survives even if the following step fails
+(P3: an uncommitted/unsaved fix is invisible to the next review — the
+claim itself is real state, correctly saved). But no code path ever
+transitions a contract back out of `IN_PROGRESS` except
+`record_programmer_result()`, which only runs if the programmer's call
+actually succeeds. If it does not — a transient network/auth failure, an
+invalid JSON response, anything — the contract is stranded: `claim()`'s
+own status guard (`{"READY_FOR_PROGRAMMER", "CHANGES_REQUESTED"}`)
+refuses every subsequent attempt, and `next_for_programmer()` does not
+surface an `IN_PROGRESS` contract either, so it disappears from the
+queue entirely. The only way out was a manual edit to
+`IMPLEMENTATION_CONTRACT_0001.md`'s `CONTRACT-META` JSON.
+
+**Fix.** `claim()` now allows re-claiming a contract already
+`IN_PROGRESS` when it is assigned to the *same* `agent` — a no-op on the
+status fields (nothing to change, it is already claimed for that agent),
+but it still refreshes the "pre" discovery snapshot, so a retry diffs
+against the repository's real current state rather than a stale one.
+Safe specifically because of Tr5-base decision 9: `agent` (the
+reviewer/programmer) gets a brand-new, stateless thread for every single
+call, so there is no genuinely in-flight work an already-`IN_PROGRESS`
+status could be protecting against — on this project's own
+single-interactive-session model (`chat_architect.py`'s main loop is
+sequential, blocking on `input()`), a second `claim()` for the same
+agent is structurally always a retry of a call that never completed, not
+a race with concurrent work. Re-claiming for a *different* agent than
+the one already assigned is still refused, unchanged — that guard
+protects a real handoff-integrity invariant, not a stale flag.
+
+**Tests** (`tests/test_contract_workflow.py`):
+`test_reclaiming_an_in_progress_contract_for_the_same_agent_is_allowed`,
+`test_reclaiming_refreshes_the_pre_discovery_snapshot`,
+`test_cannot_reclaim_an_in_progress_contract_for_a_different_agent`.
+
+**Verification**: `python -m pytest -q` — 126 total, 125 passed, 1
+pre-existing unrelated failure (`test_pyaudio_backend_real_import_and_
+lifecycle`, see ADR-038).
+
+**Open**: the *original* cause of the programmer's own call producing no
+content before ending (an upstream Codex-side failure — auth, quota,
+model/reasoning configuration — as opposed to a regression in this
+codebase's own ADR-039 stream-teeing code, which the two logged
+`userMessage` events suggest was itself working correctly up to the
+point the turn ended) was not yet confirmed at the time of this entry —
+the owner's exact console error text for that first failed attempt was
+not captured. This ADR fixes the *stranding* `claim()` caused, mirroring
+ADR-037's own distinction between fixing a diagnosability/recovery gap
+and confirming a root cause — revisit if the same failure recurs now
+that a retry is actually possible to observe again.
+
+## ADR-042: `parse_json_response` now recovers a bare JSON object surrounded by prose, not only a fenced block or an all-JSON response
+
+Found on the very next retry after ADR-041's `claim()` fix: with
+`agents/programmer/config.json`'s `provider` locally switched from
+`"codex"` to `"claude"` (the owner's own change, made live between the
+two attempts, still uncommitted at the time of this entry — see the
+"Open" note below), the programmer's Claude call got much further than
+the original Codex attempt (real tool calls logged via ADR-039 — `Glob
+project/**`, `Read project/README.md`, `Write project/hello.md` — the
+file was actually written) but still failed at the final JSON-parsing
+step:
+
+```
+Now creating the file per the contract.
+{
+  "summary": "...",
+  "notes": [...]
+}
+```
+
+**Root cause.** `parse_json_response` (`agents/contract_workflow.py`)
+supported exactly two shapes: a ```` ```json ```` fenced block, or the
+*entire* stripped response being valid JSON on its own. Every command
+template (`implement_contract.md` included) asks the model to "return
+only valid JSON," but that is a text instruction, not a structural
+guarantee (`PRINCIPLES.md` P4) — here the model added one explanatory
+sentence before the object and did not fence it, a shape neither
+existing path covered: no fence to match, and the leading sentence broke
+`json.loads` on the whole stripped text at the very first character.
+
+**Fix.** New `_extract_first_json_object(text)`: a string- and
+escape-aware brace-matching scan that finds the first complete,
+top-level `{...}` object anywhere in the text, independent of what
+precedes or follows it. `parse_json_response` now tries this as a
+fallback only when no fence matched (a fenced block still always wins,
+unchanged precedence) — recovering a near-miss response like the one
+above instead of rejecting it outright. Returns `None` (falling back to
+the previous behavior — the whole stripped text as the candidate,
+correctly still failing for genuinely prose-only or truncated responses)
+when no balanced object exists, so ADR-037's existing "prose with no
+JSON at all" and "JSON truncated mid-generation" diagnostics are
+unaffected.
+
+**Tests** (`tests/test_contract_workflow.py`):
+`test_parse_json_response_recovers_a_bare_object_with_leading_prose`
+(the near-exact real failing response), `test_parse_json_response_
+recovers_a_bare_object_with_trailing_prose`, `test_parse_json_response_
+prefers_a_fenced_block_when_present` (a fence still wins even if the
+surrounding prose also happens to contain a `{`/`}` pair). All of
+ADR-037's existing tests (prose-only, truncated-mid-object) still pass
+unchanged — the fallback correctly returns `None` for both, since
+neither contains a balanced object.
+
+**Verification**: `python -m pytest -q` — 129 total, 128 passed, 1
+pre-existing unrelated failure (`test_pyaudio_backend_real_import_and_
+lifecycle`, see ADR-038). Also verified directly against the real
+failing response captured in this incident (not only synthetic test
+cases) before writing the tests.
+
+**Open**: `agents/programmer/config.json`'s `provider: "claude"` (was
+`"codex"`) is a live, uncommitted local change made by the owner between
+the two attempts described in ADR-041/this entry — not yet confirmed
+whether this is meant to be permanent (and committed) or was a temporary
+diagnostic swap to see whether the original stall was Codex-specific.
+The original Codex failure's own exact error text was still not
+captured, so whether it shares this same root cause, a different
+`openai_codex`-side issue, or an upstream auth/quota problem remains
+unconfirmed.

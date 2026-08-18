@@ -1,7 +1,7 @@
 {
   "name": "programmer",
   "display_name": "Implementation Programmer",
-  "provider": "codex",
+  "provider": "claude",
   "model_profile": "high",
   "reasoning_profile": "high",
   "permission_profile": "edit",
