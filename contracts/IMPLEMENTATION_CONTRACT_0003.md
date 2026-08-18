@@ -1,6 +1,6 @@
 # IMPLEMENTATION_CONTRACT_0003
 
-Status: READY_FOR_REVIEWER
+Status: APPROVED
 
 ---
 
@@ -10,10 +10,10 @@ Status: READY_FOR_REVIEWER
 - Reviewer (both review gates): `reviewer`
 - Implementer: `programmer`
 - Risk level: `standard`
-- Currently with: `reviewer`
-- Handed off to: `reviewer`
+- Currently with: `owner`
+- Handed off to: `owner`
 - Created at: `2026-08-18T10:08:14+02:00`
-- Updated at: `2026-08-18T10:09:54+02:00`
+- Updated at: `2026-08-18T10:10:45+02:00`
 
 ---
 
@@ -70,7 +70,7 @@ Acceptance criteria:
 - project/checklist.md, project/README.md, and project/hello.md are byte-for-byte unchanged.
 - No file other than project/hello_world.html is created, modified, or deleted.
 
-> Status: IMPLEMENTED
+> Status: APPROVED
 
 Programmer note:
 
@@ -86,7 +86,9 @@ Tests:
 
 Reviewer's implementation review for this point:
 
-_Awaiting review._
+_By `reviewer`, 2026-08-18T10:10:45+02:00._
+
+Read project/hello_world.html in full. Verified: begins with <!DOCTYPE html>, complete <html><head><body> structure; <style> block in <head> sets `body { background-color: blue; }`; <body> contains exactly one <h1>HELLO WORLD!</h1> (grep-confirmed exact text match, no extra whitespace/case difference) with `h1 { color: black; }` in the same <style> block covering it; grep for script/link/.js/.css references returned zero matches, confirming no <script> tag and no external stylesheet/script reference. Filename via Glob confirmed as exactly project/hello_world.html with no HELLO_WORLD.html or other case-variant file present. Read project/checklist.md, project/README.md, and project/hello.md directly and confirmed their content is unchanged (matches what was already verified in the contract's Current State and Round 1 architecture review). All nine acceptance criteria satisfied.
 
 ---
 
@@ -144,7 +146,11 @@ Created project/hello_world.html: a minimal, self-contained static HTML document
 
 # Implementation Review
 
-_Awaiting implementation review._
+### Round 1 — 2026-08-18T10:10:45+02:00 — Verdict: APPROVED — Reviewer: `reviewer`
+
+Implementation of IMPLEMENTATION_CONTRACT_0003 matches the single point's requirements exactly. project/hello_world.html was read in full and verified directly: valid <!DOCTYPE html>/<html>/<head>/<body> structure, body background set to blue and the <h1>HELLO WORLD!</h1> element's text colored black, both via a single <style> block in <head>; no <script> tags and no external .css/.js references (confirmed via targeted grep, zero matches); filename is exactly lowercase_with_underscores with no case-variant file present. All three sibling files (checklist.md, README.md, hello.md) were read and confirmed unmodified/consistent with their pre-existing content. This satisfies both the point's acceptance criteria and the Round 1 architecture review's ACCEPTED findings (which raised no narrowing beyond the point text). The only out-of-scope items in the discovery diff are agents/architect/WORKING_STATE.md and agents/programmer/runtime/session.log, both confirmed to be auto-generated framework bookkeeping (WORKING_STATE.md explicitly states it is regenerated on every contract transition; session.log is an append-only tool-call log) rather than programmer edits within contract scope — the session log's own tail confirms the programmer's only file write this session was to project/hello_world.html.
+
+Out of Scope check: OK — Discovery diff shows 'Added: project/hello_world.html' (matches the single point exactly) and 'Changed: agents/architect/WORKING_STATE.md, agents/programmer/runtime/session.log'. Read WORKING_STATE.md: it explicitly states it is 'Generated automatically from the live contract queue on every state change ... do not edit by hand' — a framework side-effect of the contract workflow transitioning, not a programmer edit. Read the tail of session.log: it is an append-only tool-call log, and its own content for this contract's session shows only Read calls on checklist.md/README.md/hello.md followed by a single Write to project/hello_world.html — no other file writes occurred. Neither changed file is a project/ file, a governance .md file, or otherwise within the contract's writable scope claims; both are expected automatic framework bookkeeping outside the programmer's control. No unexplained out-of-scope change found.
 
 ---
 
@@ -158,12 +164,12 @@ _Not filled in._
 {
   "number": 3,
   "title": "Add project/hello_world.html implementing the approved checklist",
-  "status": "READY_FOR_REVIEWER",
+  "status": "APPROVED",
   "created_by": "architect",
-  "assigned_to": "reviewer",
-  "handoff_to": "reviewer",
+  "assigned_to": "owner",
+  "handoff_to": "owner",
   "created_at": "2026-08-18T10:08:14+02:00",
-  "updated_at": "2026-08-18T10:09:54+02:00",
+  "updated_at": "2026-08-18T10:10:45+02:00",
   "points": [
     {
       "number": 1,
@@ -188,10 +194,10 @@ _Not filled in._
       "programmer_tests": [
         "Manual visual/structural inspection of the written file content (no automated test suite exists in this project for static HTML output); confirmed via file listing that only project/hello_world.html was added and no other project/ file was modified."
       ],
-      "reviewer_note": "",
-      "reviewer_note_author": "",
-      "reviewer_note_at": "",
-      "status": "IMPLEMENTED"
+      "reviewer_note": "Read project/hello_world.html in full. Verified: begins with <!DOCTYPE html>, complete <html><head><body> structure; <style> block in <head> sets `body { background-color: blue; }`; <body> contains exactly one <h1>HELLO WORLD!</h1> (grep-confirmed exact text match, no extra whitespace/case difference) with `h1 { color: black; }` in the same <style> block covering it; grep for script/link/.js/.css references returned zero matches, confirming no <script> tag and no external stylesheet/script reference. Filename via Glob confirmed as exactly project/hello_world.html with no HELLO_WORLD.html or other case-variant file present. Read project/checklist.md, project/README.md, and project/hello.md directly and confirmed their content is unchanged (matches what was already verified in the contract's Current State and Round 1 architecture review). All nine acceptance criteria satisfied.",
+      "reviewer_note_author": "reviewer",
+      "reviewer_note_at": "2026-08-18T10:10:45+02:00",
+      "status": "APPROVED"
     }
   ],
   "implementer": "programmer",
@@ -215,6 +221,23 @@ _Not filled in._
     }
   ],
   "completion_notes": "Created project/hello_world.html: a minimal, self-contained static HTML document implementing every step of the approved project/checklist.md — DOCTYPE/html/head/body structure, body background set to blue via a <style> block in <head>, and an <h1> element with the exact text \"HELLO WORLD!\" colored black via the same <style> block. No script tags, no external .css/.js references, no other files created or modified.",
-  "implementation_review_rounds": []
+  "implementation_review_rounds": [
+    {
+      "round": 1,
+      "date": "2026-08-18T10:10:45+02:00",
+      "verdict": "APPROVED",
+      "reviewer": "reviewer",
+      "summary": "Implementation of IMPLEMENTATION_CONTRACT_0003 matches the single point's requirements exactly. project/hello_world.html was read in full and verified directly: valid <!DOCTYPE html>/<html>/<head>/<body> structure, body background set to blue and the <h1>HELLO WORLD!</h1> element's text colored black, both via a single <style> block in <head>; no <script> tags and no external .css/.js references (confirmed via targeted grep, zero matches); filename is exactly lowercase_with_underscores with no case-variant file present. All three sibling files (checklist.md, README.md, hello.md) were read and confirmed unmodified/consistent with their pre-existing content. This satisfies both the point's acceptance criteria and the Round 1 architecture review's ACCEPTED findings (which raised no narrowing beyond the point text). The only out-of-scope items in the discovery diff are agents/architect/WORKING_STATE.md and agents/programmer/runtime/session.log, both confirmed to be auto-generated framework bookkeeping (WORKING_STATE.md explicitly states it is regenerated on every contract transition; session.log is an append-only tool-call log) rather than programmer edits within contract scope — the session log's own tail confirms the programmer's only file write this session was to project/hello_world.html.",
+      "out_of_scope_ok": true,
+      "out_of_scope_findings": "Discovery diff shows 'Added: project/hello_world.html' (matches the single point exactly) and 'Changed: agents/architect/WORKING_STATE.md, agents/programmer/runtime/session.log'. Read WORKING_STATE.md: it explicitly states it is 'Generated automatically from the live contract queue on every state change ... do not edit by hand' — a framework side-effect of the contract workflow transitioning, not a programmer edit. Read the tail of session.log: it is an append-only tool-call log, and its own content for this contract's session shows only Read calls on checklist.md/README.md/hello.md followed by a single Write to project/hello_world.html — no other file writes occurred. Neither changed file is a project/ file, a governance .md file, or otherwise within the contract's writable scope claims; both are expected automatic framework bookkeeping outside the programmer's control. No unexplained out-of-scope change found.",
+      "reviews": [
+        {
+          "point": 1,
+          "status": "APPROVED",
+          "review": "Read project/hello_world.html in full. Verified: begins with <!DOCTYPE html>, complete <html><head><body> structure; <style> block in <head> sets `body { background-color: blue; }`; <body> contains exactly one <h1>HELLO WORLD!</h1> (grep-confirmed exact text match, no extra whitespace/case difference) with `h1 { color: black; }` in the same <style> block covering it; grep for script/link/.js/.css references returned zero matches, confirming no <script> tag and no external stylesheet/script reference. Filename via Glob confirmed as exactly project/hello_world.html with no HELLO_WORLD.html or other case-variant file present. Read project/checklist.md, project/README.md, and project/hello.md directly and confirmed their content is unchanged (matches what was already verified in the contract's Current State and Round 1 architecture review). All nine acceptance criteria satisfied."
+        }
+      ]
+    }
+  ]
 }
 CONTRACT-META -->
